@@ -1,0 +1,8 @@
+numpy
+tensorflow
+keras
+matplotlib
+jupyter
+ipython
+scipy
+tqdm
