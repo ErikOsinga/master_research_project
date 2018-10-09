@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import keras
 # change to the path where the IMNN git clone is located
-sys.path.insert(-1,'../')
+sys.path.insert(-1,'../../information_maximiser')
 import IMNN # make sure the path to the IMNN is given
 import tqdm
 
@@ -194,10 +194,10 @@ def plot_variables():
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])
-	plt.savefig('./Figures/variables_vs_epochs.png')
+	# plt.savefig('./Figures/variables_vs_epochs.png')
 	plt.show()
 
-plot_variables()
+# plot_variables()
 # ===============================================================
 # Approximate Bayesian computation with the calculated summary:
 
@@ -261,10 +261,10 @@ def ABC():
 		ax[1].set_xlabel('$\\theta$')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([])
-		plt.savefig('./Figures/approximate_bayesian_computation.png')
+		# plt.savefig('./Figures/approximate_bayesian_computation.png')
 		plt.show()
 
-	plot_samples()
+	# plot_samples()
 	# There can be a lot of theta draws which are unconstrained by the network
 	# because no similar structures were seen in the data, which is indicative of
 	# using too small of a small training set
@@ -305,9 +305,9 @@ def PMC_ABC():
 		ax[1].set_xlabel('θ')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([]);
-		plt.savefig('./Figures/PMC_ABC.png')
+		# plt.savefig('./Figures/PMC_ABC.png')
 		plt.show()
-	plot()
+	# plot()
 
 	return theta_
 
@@ -337,7 +337,7 @@ def first_order_Gaussian_MLE():
 	return MLE, asymptotic_likelihood
 
 MLE, asymptotic_likelihood = first_order_Gaussian_MLE()
-# Plot all kinds of different ones
+# Plot all kinds of different likelihoods
 θ_grid = np.linspace(0.001, 10, 1000)
 analytic_posterior = np.exp(-0.5 * np.sum(real_data**2.) / θ_grid
 	) / np.sqrt(2. * np.pi * θ_grid)**10.
@@ -360,5 +360,5 @@ ax.set_xlim([0, 10])
 ax.set_xlabel('θ')
 ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 ax.set_yticks([])
-plt.savefig('./Figures/likelihoods.png')
-plt.show()
+# plt.savefig('./Figures/likelihoods.png')
+# plt.show()
