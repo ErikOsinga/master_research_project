@@ -11,11 +11,14 @@ arXiv:1802.03537.
 
 '''
 
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import keras
-import IMNN
+# change to the path where the IMNN git clone is located
+sys.path.insert(-1,'../')
+import IMNN # make sure the path to the IMNN is given
 import tqdm
 
 tf.reset_default_graph() # start fresh
@@ -191,8 +194,10 @@ def plot_variables():
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])
+	plt.savefig('./Figures/variables_vs_epochs.png')
 	plt.show()
 
+plot_variables()
 # ===============================================================
 # Approximate Bayesian computation with the calculated summary:
 
@@ -256,9 +261,10 @@ def ABC():
 		ax[1].set_xlabel('$\\theta$')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([])
+		plt.savefig('./Figures/approximate_bayesian_computation.png')
 		plt.show()
 
-	# plot_samples()
+	plot_samples()
 	# There can be a lot of theta draws which are unconstrained by the network
 	# because no similar structures were seen in the data, which is indicative of
 	# using too small of a small training set
@@ -291,7 +297,7 @@ def PMC_ABC():
 		fig, ax = plt.subplots(2, 1, sharex = True, figsize = (10, 10))
 		plt.subplots_adjust(hspace = 0)
 		ax[0].scatter(theta_ , s_, s = 1)
-		ax[0].plot([0, 10], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
+		ax[0].plot([0, 10], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
 		ax[0].set_ylabel('Network output', labelpad = 0)
 		ax[0].set_xlim([0, 10])
 		ax[0].set_ylim([np.min(s_), np.max(s_)])
@@ -299,7 +305,9 @@ def PMC_ABC():
 		ax[1].set_xlabel('θ')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([]);
+		plt.savefig('./Figures/PMC_ABC.png')
 		plt.show()
+	plot()
 
 	return theta_
 
@@ -352,4 +360,5 @@ ax.set_xlim([0, 10])
 ax.set_xlabel('θ')
 ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 ax.set_yticks([])
+plt.savefig('./Figures/likelihoods.png')
 plt.show()
