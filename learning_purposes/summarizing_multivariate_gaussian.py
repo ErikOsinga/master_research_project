@@ -80,25 +80,23 @@ def generate_data(theta1, theta2, n_samples, train=False):
 
 
 # Multivariate Gaussians are specified by their mean and covariance matrix
-# We will just consider 2 dimensions
-
+# We will just consider N=2 dimensions
 
 # each entry is an N dimensional value
 # Covariance indicates the level to which two variables vary together
 # The covariance matrix element Cij is the covariance
 # of x_i and x_j, The element c_ii is the variance of x_i 
 
-# 10x10 data points , or just 10 data points?
-input_shape = [10,1,2] #10,1]  This is 10 2D data points with a dummy axis
+# generate 10x10 data points, or just 100 data points?
+input_shape = [100,1,2] # This is 100 2D data points with a dummy axis
+
 # Fiducial parameter and perturbed values just above and below
-theta1_fid = 1.
-theta2_fid = 2.
+theta1_fid = 1. # variance of 1st dimension (x)
+theta2_fid = 2. # variance of 2nd dimension (y)
 delta_theta = 0.1
 
 ''' Generate train data '''
-
-# number of simulations
-n_s = 1000
+n_s = 1000 # number of simulations
 n_train = 1 # splits
 
 t = generate_data(theta1_fid,theta2_fid,n_s*n_train, train = False)
@@ -111,7 +109,6 @@ n_p = int(n_s * derivative_fraction)
 seed = np.random.randint(1e6)
 np.random.seed(seed)
 
-#  Dont know if we should also compute crossterms? Yes we do.
 # t_m must be an array of shape (num_params,input_shape)
 # thus in this case, we need to build an array with in the first position
 # t_m_-theta1 and in the second position t_m-theta2
@@ -135,7 +132,6 @@ derivative_denominator = 1. / (2. * delta_theta)
 der_den = np.array([derivative_denominator, derivative_denominator]) 
 
 data = {"x_central": t, "x_m": t_m, "x_p":t_p}
-
 
 ''' Generate test data '''
 tt = generate_data(theta1_fid,theta2_fid, n_s, train=False)
@@ -181,6 +177,7 @@ def plot_data():
 	fig, ax = plt.subplots(1, 2, figsize = (10, 6))
 	# plot one random row from 1000 rows of the simulated data images 
 	# x, y = data['x_central'][np.random.randint(n_train * n_s)].T
+													# [:,0] removes dummy axis
 	ax[0].plot(*data['x_central'][np.random.randint(n_train * n_s)].T[:,0],'x')
 	ax[0].axis('equal')
 	ax[0].set_title('Training data')
@@ -263,13 +260,13 @@ parameters = {
     'bb': 0.1,
     'activation': tf.nn.leaky_relu,
     'α': 0.01,
-    # 'hidden layers': [128, 128] # Should think about this
+    # 'hidden layers': [128, 128] # Dense layers only doesnt work well for 2D data
+    # Convolutional layers:
     'hidden layers': [[10, [5, 5], [2, 2], 'SAME'], [6, [3, 3], [1, 1], 'SAME'], 100, 100],
 
 }
 
 # np.randfsdf()
-
 
 # Initialize the IMNN
 n = IMNN.IMNN(parameters=parameters)
@@ -287,13 +284,13 @@ n.train(num_epochs = num_epochs, n_train = n_train, keep_rate = keep_rate
 	, data = data, history = True)
 
 def plot_variables():
-	fig, ax = plt.subplots(6, 1, sharex = True, figsize = (8, 14))
+	fig, ax = plt.subplots(5, 1, sharex = True, figsize = (8, 14))
 	plt.subplots_adjust(hspace = 0)
 	end = len(n.history["det(F)"])
 	epochs = np.arange(end)
 	a, = ax[0].plot(epochs, n.history["det(F)"], label = 'Training data')
 	b, = ax[0].plot(epochs, n.history["det(test F)"], label = 'Test data')
-	ax[0].axhline(y=5,ls='--',color='k')
+	# ax[0].axhline(y=5,ls='--',color='k')
 	ax[0].legend(frameon = False)
 	ax[0].set_ylabel(r'$|{\bf F}_{\alpha\beta}|$')
 	ax[1].plot(epochs, n.history["Λ"])
@@ -327,7 +324,7 @@ def plot_variables():
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])
-	# plt.savefig('./Figures/variables_vs_epochs.png')
+	plt.savefig('./Figures/multivariate_gaussian/variables_vs_epochs.png')
 	plt.show()
 
 plot_variables()
