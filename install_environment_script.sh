@@ -20,3 +20,17 @@ pip install -r pip-requirements.txt
 echo "Created conda env 'kerastf'. Recommended to add the following alias to your ~/.bashrc for convieniece:"
 echo
 echo "alias kerastf='source /path/to/miniconda/bin/activate kerastf'"
+
+
+
+# > If you want to skip all above steps you can also copy Erik's conda environment
+# > If you are on the sterrewacht only
+# mkdir /data1/$USER/miniconda
+# cd /data1/$USER/miniconda
+# cp -r /net/reusel/data1/osinga/miniconda/* ./ 
+
+# or maybe even use only a symbolic link
+# ls -s ./ /net/reusel/data1/osinga/miniconda/*
+
+# > To activate
+# source /data1/$USER/miniconda/bin/activate kerastf
