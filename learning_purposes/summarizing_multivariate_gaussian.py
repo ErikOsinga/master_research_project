@@ -42,10 +42,8 @@ def generate_data_ABC(theta, train=False):
 		return np.moveaxis(np.random.normal(0., np.sqrt(theta)
 			, input_shape + [len(theta)]), -1, 0)
 
-def generate_data(theta1, theta2, n_samples, train=False):
+def generate_data(theta1, theta2, n_samples = 1, train=False):
 	'''
-	Fiducial parameter is passed as a list so many simulations can be made
-	at once
 
 	Returns: array of shape (n_samples,input_shape,N) draws 
 	from multivariate normal dist, where N is the dimension of variables
@@ -186,7 +184,7 @@ def plot_data():
 	ax[1].axis('equal')
 	ax[1].set_title('Test data')
 	plt.savefig('./Figures/multivariate_gaussian/data_visualization.png')
-	plt.show()
+	# plt.show()
 	plt.close()
 
 plot_data()
@@ -238,7 +236,7 @@ def plot_derivatives():
 		, linestyle = 'dashed', color = 'black')
 	ax[2, 1].set_title('Difference between upper and lower test images');	
 	plt.savefig('./Figures/multivariate_gaussian/derivatives.png')
-	plt.show()
+	# plt.show()
 	plt.close()
 
 plot_derivatives()
@@ -277,7 +275,7 @@ n.setup(η = eta)
 # can change the optimization scheme (although adam was found to be unstable)
 # n.backpropagate = tf.train.AdamOptimizer(eta).minimize(n.Λ) apparently doesnt work
 
-num_epochs = 800
+num_epochs = 700
 keep_rate = 0.8
 
 n.train(num_epochs = num_epochs, n_train = n_train, keep_rate = keep_rate
@@ -366,36 +364,54 @@ def ABC():
 	# sampled parameter values, summary of real data, summaries of generated data
 	# distances of generated data to real data, Fisher info of real data
 	theta, summary, s, ro, F = n.ABC(real_data = real_data, prior = [0, 10]
-		, draws = 100000, generate_simulation = generate_data
-		, at_once = True, data = data)
-	#at_once = False will create only one simulation at a time
+		, draws = 1000000, generate_simulation = generate_data
+		, at_once = False, data = data)
+	# theta is an array of shape (draws,n_params)
 
+	#at_once = False will create only one simulation at a time
+	# Only way I have implemented it so far
 
 	# Draws are accepted if the distance between the simulation summary and the 
 	# simulation of real data are close (i.e., smaller than some value epsilon)
-	epsilon = 1
+	epsilon = 100 # Chosen quite arbitrarily
 	accept_indices = np.argwhere(ro < epsilon)[:, 0]
 	reject_indices = np.argwhere(ro >= epsilon)[:, 0]
 
 	# plot output samples and histogram of the accepted samples
 	# which should peak around theta=1
 	def plot_samples():
-		fig, ax = plt.subplots(2, 1, sharex = True, figsize = (10, 10))
+		fig, ax = plt.subplots(2, 2, sharex = 'col', figsize = (10, 10))
 		plt.subplots_adjust(hspace = 0)
-		ax[0].scatter(theta[accept_indices] , s[accept_indices, 0], s = 1)
-		ax[0].scatter(theta[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
-		ax[0].plot([0, 10], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
-		ax[0].set_ylabel('Network output', labelpad = 0)
-		ax[0].set_xlim([0, 10])
-		ax[1].hist(theta[accept_indices], np.linspace(0, 10, 100)
+		theta1 = theta[:,0]
+		theta2 = theta[:,1]
+
+		ax[0, 0].set_title('Epsilon is chosen to be %.2f'%epsilon)
+		ax[0, 0].scatter(theta1[accept_indices] , s[accept_indices, 0], s = 1)
+		ax[0, 0].scatter(theta1[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
+		ax[0, 0].plot([0, 10], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
+		ax[0, 0].set_ylabel('Network output', labelpad = 0)
+		ax[0, 0].set_xlim([0, 10])
+		ax[1, 0].hist(theta1[accept_indices], np.linspace(0, 10, 100)
 			, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
-		ax[1].set_xlabel('$\\theta$')
-		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
-		ax[1].set_yticks([])
-		# plt.savefig('./Figures/approximate_bayesian_computation.png')
+		ax[1, 0].set_xlabel('$\\theta_1$')
+		ax[1, 0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+		ax[1, 0].set_yticks([])
+
+		ax[0, 1].scatter(theta2[accept_indices] , s[accept_indices, 0], s = 1)
+		ax[0, 1].scatter(theta2[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
+		ax[0, 1].plot([0, 10], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
+		ax[0, 1].set_ylabel('Network output', labelpad = 0)
+		ax[0, 1].set_xlim([0, 10])
+		ax[1, 1].hist(theta2[accept_indices], np.linspace(0, 10, 100)
+			, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+		ax[1, 1].set_xlabel('$\\theta_2$')
+		ax[1, 1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+		ax[1, 1].set_yticks([])
+
+		plt.savefig('./Figures/multivariate_gaussian/approximate_bayesian_computation.png')
 		plt.show()
 
-	# plot_samples()
+	plot_samples()
 	# There can be a lot of theta draws which are unconstrained by the network
 	# because no similar structures were seen in the data, which is indicative of
 	# using too small of a small training set
@@ -420,25 +436,38 @@ def PMC_ABC():
 
 	# W = weighting of samples, total_draws = total num draws so far
 	theta_, summary_, ro_, s_, W, total_draws, F = n.PMC(real_data = real_data
-		, prior = [0, 10], num_draws = 1000, num_keep = 1000
-		, generate_simulation = generate_data, criterion = 0.1, at_once = True
+		, prior = [0, 10], num_draws = 10000, num_keep = 10000
+		, generate_simulation = generate_data, criterion = 0.1, at_once = False
 		, samples = None, data = data)
 
 	def plot():
-		fig, ax = plt.subplots(2, 1, sharex = True, figsize = (10, 10))
+		fig, ax = plt.subplots(2, 2, sharex = 'col', figsize = (10, 10))
 		plt.subplots_adjust(hspace = 0)
-		ax[0].scatter(theta_ , s_, s = 1)
-		ax[0].plot([0, 10], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
-		ax[0].set_ylabel('Network output', labelpad = 0)
-		ax[0].set_xlim([0, 10])
-		ax[0].set_ylim([np.min(s_), np.max(s_)])
-		ax[1].hist(theta_, np.linspace(0, 10, 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
-		ax[1].set_xlabel('θ')
-		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
-		ax[1].set_yticks([]);
-		# plt.savefig('./Figures/PMC_ABC.png')
+
+		theta1_, theta2_ = theta_[:,0], theta_[:,1]
+
+		ax[0, 0].scatter(theta1_ , s_, s = 1)
+		ax[0, 0].plot([0, 10], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
+		ax[0, 0].set_ylabel('Network output', labelpad = 0)
+		ax[0, 0].set_xlim([0, 10])
+		ax[0, 0].set_ylim([np.min(s_), np.max(s_)])
+		ax[1, 0].hist(theta1_, np.linspace(0, 10, 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+		ax[1, 0].set_xlabel('$\\theta_1$')
+		ax[1, 0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+		ax[1, 0].set_yticks([])
+
+		ax[0, 1].scatter(theta2_ , s_, s = 1)
+		ax[0, 1].plot([0, 10], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
+		ax[0, 1].set_ylabel('Network output', labelpad = 0)
+		ax[0, 1].set_xlim([0, 10])
+		ax[0, 1].set_ylim([np.min(s_), np.max(s_)])
+		ax[1, 1].hist(theta2_, np.linspace(0, 10, 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+		ax[1, 1].set_xlabel('$\\theta_2$')
+		ax[1, 1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+		ax[1, 1].set_yticks([]);
+		plt.savefig('./Figures/multivariate_gaussian/PMC_ABC.png')
 		plt.show()
-	# plot()
+	plot()
 
 	return theta_
 
