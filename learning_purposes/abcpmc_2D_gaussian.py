@@ -103,6 +103,10 @@ def generate_data_quick(theta):
 	used with the abcpmc module
 	"""
 	theta1, theta2 = theta 
+	if (theta1 < 0)  or (theta2 < 0):
+		# If theta1 or theta2 is negative return garbage
+		return np.asarray([1e9,1e9]*100).reshape(100,1,2)
+	#print (theta1,theta2)
 	mean = [0,0] 
 	# no covariance  
 	cov = [[theta1,0],  # x_0 has variance 1, 
@@ -135,13 +139,13 @@ def MSE(x, y):
 
 ''' Setup '''
 # 'Best' guess about the distribution
-prior = abcpmc.GaussianPrior(mu=[0, 0], sigma=np.eye(2) * 1.6)
+prior = abcpmc.TophatPrior([0.0,1.0], [2.0,3.0])
 
 # As threshold for accepting draws from the prior we use the alpha-th percentile
 # of the sorted distances of the particles of the current iteration
 alpha = 75
 T = 20 # sample for T iterations
-eps_start = 10.0 # sufficiently high starting threshold (like 5x the variability or more)
+eps_start = 20.0 # sufficiently high starting threshold (like 5x the variability or more)
 eps = abcpmc.ConstEps(T, eps_start)
 
 
@@ -231,15 +235,15 @@ def postprocessing(pools):
 # Pools fail if we dont execute this if statement
 if __name__ == '__main__':
 	# check the variability of the distances at the correct parameters
-	distances = [MSE(data, generate_data_quick([theta1_fid,theta2_fid])) for _ in range(1000)]
-	sns.distplot(distances, axlabel="distances", )
-	plt.title("Variablility of distance from simulations")
-	plt.savefig('./Figures/multivariate_gaussian/variability_of_distances.png')
-	plt.show()
-	plt.close()
+	#distances = [MSE(data, generate_data_quick([theta1_fid,theta2_fid])) for _ in range(1000)]
+	#sns.distplot(distances, axlabel="distances", )
+	#plt.title("Variablility of distance from simulations")
+	#plt.savefig('./Figures/multivariate_gaussian/variability_of_distances.png')
+	#plt.show()
+	#plt.close()
 	# Shows variability is between roughly 1 sigma upper/lower bounds: 2.5 and 3.5 
 
-	threads = 1
+	threads = 10
 	
 	# Create an instance of the sampler. 5000 particles
 	# The sampler HAS to be created in the __main__ thread else multiprocessing

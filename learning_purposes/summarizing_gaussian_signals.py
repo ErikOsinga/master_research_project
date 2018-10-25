@@ -1,3 +1,5 @@
+# coding=utf-8
+
 '''
 Reproducing the Summarising Gaussian Signals in the IMNN paper
 Trying to maximize the Fisher information by finding a non-linear summary
@@ -23,8 +25,22 @@ import tqdm
 
 tf.reset_default_graph() # start fresh
 
+np.random.seed(123) # for reproducibility
 
 def generate_data(theta, train=False):
+	'''
+	Fiducial parameter is NOT passed as a list for testing purposes
+
+	Returns: array of shape (n_s*n_train,input_shape) draws from norm dist
+	'''
+	if train:
+		return np.moveaxis(np.random.normal(0., np.sqrt(theta[0])
+			, [1] + input_shape + [len(theta)]), -1, 0)
+	else: 
+		return np.moveaxis(np.random.normal(0., np.sqrt(theta[0])
+			, input_shape + [len(theta)]), -1, 0)
+
+def generate_data_ABC(theta, train=False):
 	'''
 	Fiducial parameter is passed as a list so many simulations can be made
 	at once
@@ -96,6 +112,8 @@ def plot_data():
 	ax.set_xticks([])
 	ax.set_ylabel("Data amplitude");
 	plt.show()
+
+# plot_data()
 
 def plot_derivatives():
 	'''
@@ -194,10 +212,10 @@ def plot_variables():
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])
-	# plt.savefig('./Figures/variables_vs_epochs.png')
-	plt.show()
+	plt.savefig('./Figures/variables_vs_epochs_seed123_2.png')
+	# plt.show()
 
-# plot_variables()
+plot_variables()
 # ===============================================================
 # Approximate Bayesian computation with the calculated summary:
 
@@ -235,7 +253,7 @@ def ABC():
 	# sampled parameter values, summary of real data, summaries of generated data
 	# distances of generated data to real data, Fisher info of real data
 	theta, summary, s, ro, F = n.ABC(real_data = real_data, prior = [0, 10]
-		, draws = 100000, generate_simulation = generate_data
+		, draws = 100000, generate_simulation = generate_data_ABC
 		, at_once = True, data = data)
 	#at_once = False will create only one simulation at a time
 
@@ -290,7 +308,7 @@ def PMC_ABC():
 	# W = weighting of samples, total_draws = total num draws so far
 	theta_, summary_, ro_, s_, W, total_draws, F = n.PMC(real_data = real_data
 		, prior = [0, 10], num_draws = 1000, num_keep = 1000
-		, generate_simulation = generate_data, criterion = 0.1, at_once = True
+		, generate_simulation = generate_data_ABC, criterion = 0.1, at_once = True
 		, samples = None, data = data)
 
 	def plot():
@@ -360,5 +378,5 @@ ax.set_xlim([0, 10])
 ax.set_xlabel('θ')
 ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 ax.set_yticks([])
-# plt.savefig('./Figures/likelihoods.png')
+plt.savefig('./Figures/likelihoods_seed123_2.png')
 # plt.show()

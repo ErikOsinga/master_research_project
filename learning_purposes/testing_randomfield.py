@@ -5,16 +5,17 @@ I have tried to get randomfield to work on several python versions.
 Python3.6, Python3.4 and Python3.3 
 These all failed.
 
-Python 2.7.15 seems to work. However this is not ideal as 
+Python 2.7.15 (and 2.7.13) seems to work. However this is not ideal as 
 "Python 3.x is the present and future of the language" -- python people.
 
-But more importantly, the IMNN code is run using Python-3.6.6
+But more importantly, the IMNN code is developed using Python-3.6.6
 So this might cause conflicts down the road..
 
 '''
 
 from __future__ import print_function, division
-
+import sys
+sys.path.insert(-1,'/data1/osinga/anaconda2')
 import randomfield
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,7 +36,8 @@ def test_generate():
     # Generate a delta-field realization
     # It is calculated at z=0, sampled from a distribution with mean zero
     # and k-space variance proportional to the smoothed power spectrum
-    data = generator.generate_delta_field(seed=seed,show_plot=True)
+    data = generator.generate_delta_field(seed=seed,show_plot=False
+        ,save_plot_name='./Figures/generated_delta_field_slice.png')
     # If show_plot=True then also shows a y,z slice 
 
     return generator, data
