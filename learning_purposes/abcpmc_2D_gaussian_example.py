@@ -19,6 +19,8 @@ import tqdm
 import abcpmc # find citation at https://github.com/jakeret/abcpmc
 import corner # find citation at https://github.com/dfm/corner.py
 
+import time
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_style("white")
@@ -68,7 +70,7 @@ parameters = {
 
 samples_size = 100
 sigma = np.eye(2) * 0.25
-means = [1.1, 1.5]
+means = [1.0, 2.0]
 data = np.random.multivariate_normal(means, sigma, samples_size)
 # plt.matshow(sigma) # display array as matrix
 # plt.title('Covariance matrix sigma')
@@ -83,17 +85,22 @@ def dist_measure(x, y):
 	"""Sum of the abs difference of the mean of the simulated and obs data"""
 	return np.sum(np.abs(np.mean(x, axis=0) - np.mean(y, axis=0)))
 
-# check the variability of the distances at the correct parameters
-# distances = [dist_measure(data, create_new_sample(means)) for _ in range(1000)]
-# sns.distplot(distances, axlabel="distances", )
-# plt.title("Variablility of distance from simulations")
-# plt.savefig('./Figures/abcpmc/variability_of_distances.png')
-# plt.show()
-# plt.close()
+def MSE(x, y):
+	""" Mean squared error distance measure"""
+	return np.mean(np.power(x - y,2))
+
+def euclidian(x,y):
+	return np.linalg.norm(x-y)
+
+def std(x,y):
+	return abs(np.std(x)-np.std(y))
 
 ''' Setup '''
 # 'Best' guess about the distribution
 prior = abcpmc.GaussianPrior(mu=[1.0, 1.0], sigma=np.eye(2) * 0.5)
+
+# 'Best' guess about the distribution, uniform distribution
+prior = abcpmc.TophatPrior([0.0,0.0], [5.0,5.0])
 
 # As threshold for accepting draws from the prior we use the alpha-th percentile
 # of the sorted distances of the particles of the current iteration
@@ -109,6 +116,7 @@ def launch(threads):
 
 	pools = []
 	# pool is a namedtuple representing the values of one iteration
+	print ('Starting sampling now..')
 	for pool in sampler.sample(prior, eps):
 		print ("T: {0}, eps: {1:>.4f}, ratio: {2:>.4f}".format(
 				pool.t, eps(pool.eps), pool.ratio))
@@ -189,9 +197,18 @@ def postprocessing(pools):
 
 # Pools might fail if we dont execute this if statement
 if __name__ == '__main__':
-	threads = 4 # for some reason threads>1 gives a Broken pipe error
+	threads = 10 # for some reason threads>1 gives a Broken pipe error
 
-	print ('???')
+	# check the variability of the distances at the correct parameters
+	# distances = [std(data, create_new_sample(means)) for _ in range(1000)]
+	# sns.distplot(distances, axlabel="distances", )
+	# plt.title("Variablility of distance from simulations")
+	# plt.savefig('./Figures/abcpmc/variability_of_distances.png')
+	# plt.show()
+	# plt.close()
+	# time.sleep(5)
+
+
 	# Create an instance of the sampler. 5000 particles
 	# The sampler HAS to be created in the __main__ thread else multiprocessing
 	# does not work 
@@ -203,7 +220,6 @@ if __name__ == '__main__':
 	sampler.particle_proposal_cls = abcpmc.OLCMParticleProposal
 
 	# sampler = create_sampler(threads)
-	import time
 	t0 = time.time()
 	pools = launch(threads)
 	print ("took %.2f seconds"%(time.time() - t0))

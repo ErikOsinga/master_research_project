@@ -137,8 +137,12 @@ def MSE(x, y):
 	""" Mean squared error distance measure"""
 	return np.mean(np.power(x - y,2))
 
+def std(x,y):
+	return abs(np.std(x)-np.std(y))
+
+
 ''' Setup '''
-# 'Best' guess about the distribution
+# 'Best' guess about the distribution, uniform distribution
 prior = abcpmc.TophatPrior([0.0,1.0], [2.0,3.0])
 
 # As threshold for accepting draws from the prior we use the alpha-th percentile
@@ -159,6 +163,7 @@ def launch(threads):
 		print ("T: {0}, eps: {1:>.4f}, ratio: {2:>.4f}".format(
 				pool.t, eps(pool.eps), pool.ratio))
 
+		# prints theta_1 and theta_2
 		for i, (mean,std) in enumerate(zip(*abcpmc.weighted_avg_and_std(
 												pool.thetas, pool.ws, axis=0))):
 			print(u"    theta[{0}]: {1:>.4f} \u00B1 {2:>.4f}".format(i, mean,std))
@@ -176,8 +181,8 @@ def postprocessing(pools):
 	for i in range(len([theta1_fid,theta2_fid])):
 		moments = np.array([abcpmc.weighted_avg_and_std(
 			pool.thetas[:,i], pool.ws, axis=0) for pool in pools])
-		plt.errorbar(range(T),moments[:,0], moments[:,1], label='Theta_%i'%i)
-	plt.hlines([theta1,theta2], 0, T, linestyle='dotted', linewidth=0.7)
+		plt.errorbar(range(T),moments[:,0], moments[:,1], label='Theta %i'%i)
+	plt.hlines([theta1_fid,theta2_fid], 0, T, linestyle='dotted', linewidth=0.7)
 	plt.xlim([-.5,T])
 	plt.xlabel("Iteration")
 	plt.ylabel("Value")
@@ -218,29 +223,31 @@ def postprocessing(pools):
 
 	"""Plot the posterior, visualize with 'corner' package """
 	samples = np.vstack([pool.thetas for pool in pools])
-	fig = corner.corner(samples, truths= [theta1,theta2])
+	fig = corner.corner(samples, truths= [theta1_fid,theta2_fid])
+	plt.savefig('./Figures/multivariate_gaussian/posterior_all_iterations.png')
 	# plt.show() # theres probably a nicer package for this that rotates the Y
 	plt.close()
 
 	""" Plot the posterior, omitting the first iterations """
 	idx = -1
 	samples = pools[idx].thetas
-	fig = triangle.corner(samples, weights=pools[idx].ws, truths= [theta1,theta2])
+	fig = corner.corner(samples, weights=pools[idx].ws, truths= [theta1_fid,theta2_fid])
 	for mean, std in zip(*abcpmc.weighted_avg_and_std(samples, pools[idx].ws, axis=0)):
 		print(u"mean: {0:>.4f} \u00B1 {1:>.4f}".format(mean,std))
 	plt.savefig('./Figures/multivariate_gaussian/posterior.png')
 	# plt.show()
+	plt.close()
 
 
 # Pools fail if we dont execute this if statement
 if __name__ == '__main__':
 	# check the variability of the distances at the correct parameters
-	#distances = [MSE(data, generate_data_quick([theta1_fid,theta2_fid])) for _ in range(1000)]
-	#sns.distplot(distances, axlabel="distances", )
-	#plt.title("Variablility of distance from simulations")
-	#plt.savefig('./Figures/multivariate_gaussian/variability_of_distances.png')
-	#plt.show()
-	#plt.close()
+	# distances = [MSE(data, generate_data_quick([theta1_fid,theta2_fid])) for _ in range(5000)]
+	# sns.distplot(distances, axlabel="distances", )
+	# plt.title("Variablility of distance from simulations")
+	# plt.savefig('./Figures/multivariate_gaussian/variability_of_distances.png')
+	# plt.show()
+	# plt.close()
 	# Shows variability is between roughly 1 sigma upper/lower bounds: 2.5 and 3.5 
 
 	threads = 10
@@ -249,15 +256,14 @@ if __name__ == '__main__':
 	# The sampler HAS to be created in the __main__ thread else multiprocessing
 	# does not work, and then still it might not work..
 	sampler = abcpmc.Sampler(N=5000, Y=data, postfn=generate_data_quick
-				, dist=dist_measure, threads=threads)
+				, dist=std, threads=threads)
 	
 	# Optional: customize the proposal creation. 
 	# Here we use Optimal Local Covariance Matrix - kernel. (Filipi et al. 2012)
-	# sampler.particle_proposal_cls = abcpmc.OLCMParticleProposal
+	sampler.particle_proposal_cls = abcpmc.OLCMParticleProposal
 
 	import time
 	t0 = time.time()
 	pools = launch(threads)
 	print ("took %.2f seconds"%(time.time() - t0))
-
 	postprocessing(pools)
