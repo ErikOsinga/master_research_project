@@ -75,12 +75,13 @@ input_shape = [10000]
 # Fiducial parameter and perturbed values just above and below
 theta_fid = 3. # mean
 theta2_fid = 1. # variance
-delta_theta = 0.1
+delta_theta1 = 0.1
+delta_theta2 = 0.4
 
 ''' Generate train data '''
 
 # number of simulations
-n_s = 1000
+n_s = 10000
 n_train = 1 # splits, for if it doesnt fit into memory
 
 t = generate_data(theta_fid,theta2_fid,(n_train*n_s), train = False)
@@ -93,27 +94,25 @@ n_p = int(n_s * derivative_fraction)
 seed = np.random.randint(1e6)
 np.random.seed(seed)
 # Perturb theta1 minus delta theta
-t_m1 = generate_data(theta_fid - delta_theta, theta2_fid,(n_train*n_p), train = True) 
+t_m1 = generate_data(theta_fid - delta_theta1, theta2_fid,(n_train*n_p), train = True) 
 # Perturb theta2 minus delta theta
-t_m2 = generate_data(theta_fid, theta2_fid - delta_theta,(n_train*n_p), train= True)
+t_m2 = generate_data(theta_fid, theta2_fid - delta_theta2,(n_train*n_p), train= True)
 # Concatenate these into a vector
 t_m = np.concatenate( (t_m1, t_m2), axis=1) # I think this is the correct way
 
-# set a seed to surpress the sample variance
+# set same seed to surpress the sample variance
 np.random.seed(seed)
 # Perturb theta1 plus delta theta
-t_p1 = generate_data(theta_fid + delta_theta,theta2_fid,(n_train*n_p), train = True) 
+t_p1 = generate_data(theta_fid + delta_theta1,theta2_fid,(n_train*n_p), train = True) 
 # Perturb theta2 plus delta theta
-t_p2 = generate_data(theta_fid, theta2_fid + delta_theta,(n_train*n_p), train= True)
+t_p2 = generate_data(theta_fid, theta2_fid + delta_theta2,(n_train*n_p), train= True)
 t_p = np.concatenate( (t_p1, t_p2), axis=1) # I think this is the correct way
 
 np.random.seed()
 
 # denominator of the derivative 
-derivative_denominator = 1. / (2. * delta_theta)
 # needs to be stored in an array of shape [number of parameters]
-der_den = np.array([derivative_denominator, derivative_denominator]) 
-
+der_den = np.array([1. / (2. * delta_theta1), 1. / (2. * delta_theta2)]) 
 
 data = {"x_central": t, "x_m": t_m, "x_p":t_p}
 
@@ -121,13 +120,15 @@ data = {"x_central": t, "x_m": t_m, "x_p":t_p}
 tt = generate_data(theta_fid,theta2_fid, n_s, train=False)
 seed = np.random.randint(1e6)
 np.random.seed(seed)
-tt_m1 = generate_data(theta_fid - delta_theta,theta2_fid,n_p, train=True)
-tt_m2 = generate_data(theta_fid, theta2_fid - delta_theta,n_p, train=True)
+# Perturb minus delta theta
+tt_m1 = generate_data(theta_fid - delta_theta1,theta2_fid,n_p, train=True)
+tt_m2 = generate_data(theta_fid, theta2_fid - delta_theta2,n_p, train=True)
 tt_m = np.concatenate( (tt_m1, tt_m2), axis=1)
 
 np.random.seed(seed)
-tt_p1 = generate_data(theta_fid + delta_theta, theta2_fid,n_p, train=True)
-tt_p2 = generate_data(theta_fid, theta2_fid + delta_theta, n_p, train=True)
+# Perturb plus delta theta
+tt_p1 = generate_data(theta_fid + delta_theta1, theta2_fid,n_p, train=True)
+tt_p2 = generate_data(theta_fid, theta2_fid + delta_theta2, n_p, train=True)
 tt_p = np.concatenate( (tt_p1, tt_p2), axis=1)
 np.random.seed()
 data["x_central_test"] = tt
@@ -220,6 +221,11 @@ def plot_derivatives():
 	ax[0, 0].set_title("Theta 1 (the mean)")
 	ax[0, 1].set_title("Theta 2 (the std)")
 
+	for i in range(2):
+		for j in range(2):
+			ax[i, j].set_xlim(0,9)
+	fig.suptitle('Showing only first 10 datapoints out of %i'%t.shape[1])
+
 	# Theta 1
 	ax[1, 0].axhline(xmin = 0., xmax = 1., y = 0., linestyle = 'dashed'
 				, color = 'black')
@@ -260,7 +266,7 @@ parameters = {
     'wv': 0.,
     'bb': 0.1,
     'activation': tf.nn.leaky_relu,
-    'α': 0.001,
+    'α': 0.01,
     # 'hidden layers': [256,256]
     'hidden layers': [512,256,256,256]
 }
@@ -303,22 +309,22 @@ def plot_variables():
 
 	# Derivative wrt to theta1                   theta1 is column 0
 	ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,0].flatten()
-		, color = 'C0', label='theta1')
+		, color = 'C0', label='theta1',alpha=0.5)
 	# Derivative wrt to theta2                   theta1 is column 1
 	ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,1].flatten()
-		, color = 'C0', ls='dashed', label='theta2')
+		, color = 'C0', ls='dashed', label='theta2',alpha=0.5)
 
 	ax[3].plot(epochs, np.array(n.history["test dμdθ"])[:,0].flatten()
-		, color = 'C1', label='theta1')
+		, color = 'C1', label='theta1',alpha=0.5)
 	ax[3].plot(epochs, np.array(n.history["test dμdθ"])[:,1].flatten()
-		, color = 'C1', ls='dashed', label='theta2')
+		, color = 'C1', ls='dashed', label='theta2',alpha=0.5)
 	ax[3].legend(frameon=False)
 
 	ax[3].set_ylabel(r'$\partial\mu/\partial\theta$')
 	ax[3].set_xlabel('Number of epochs')
 	ax[3].set_xlim([0, len(epochs)])
-	ax[4].plot(epochs, np.array(n.history["μ"]).reshape((np.prod(np.array(n.history["μ"]).shape))))
-	ax[4].plot(epochs, np.array(n.history["test μ"]).reshape((np.prod(np.array(n.history["test μ"]).shape))))
+	ax[4].plot(epochs, np.array(n.history["μ"]).reshape((np.prod(np.array(n.history["μ"]).shape))),alpha=0.5)
+	ax[4].plot(epochs, np.array(n.history["test μ"]).reshape((np.prod(np.array(n.history["test μ"]).shape))),alpha=0.5)
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])

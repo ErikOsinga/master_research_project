@@ -111,9 +111,10 @@ def plot_data():
 	ax.set_xlim([0, 9])
 	ax.set_xticks([])
 	ax.set_ylabel("Data amplitude");
-	plt.show()
+	plt.savefig('Figures/1d_gaussian/data_visualization.png')
+	plt.close()
 
-# plot_data()
+plot_data()
 
 def plot_derivatives():
 	'''
@@ -144,9 +145,11 @@ def plot_derivatives():
 				, color = 'C1')
 	ax[1].set_xlim([0, 9])
 	ax[1].set_xticks([])
-	ax[1].set_ylabel("Difference between derivative data amplitudes");
-	plt.show()
+	ax[1].set_ylabel("Difference between derivative data amplitudes")
+	plt.savefig('Figures/1d_gaussian/derivatives_visualization.png')
+	plt.close()
 
+plot_derivatives()
 
 ''' Initialize the Neural Net '''
 parameters = {
@@ -212,8 +215,9 @@ def plot_variables():
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])
-	plt.savefig('./Figures/variables_vs_epochs_seed123_2.png')
+	plt.savefig('./Figures/1d_gaussian/variables_vs_epochs_seed123_2.png')
 	# plt.show()
+	plt.close()
 
 plot_variables()
 # ===============================================================
@@ -279,10 +283,10 @@ def ABC():
 		ax[1].set_xlabel('$\\theta$')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([])
-		# plt.savefig('./Figures/approximate_bayesian_computation.png')
+		plt.savefig('./Figures/1d_gaussian/approximate_bayesian_computation.png')
 		plt.show()
 
-	# plot_samples()
+	plot_samples()
 	# There can be a lot of theta draws which are unconstrained by the network
 	# because no similar structures were seen in the data, which is indicative of
 	# using too small of a small training set
@@ -323,8 +327,9 @@ def PMC_ABC():
 		ax[1].set_xlabel('θ')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([]);
-		# plt.savefig('./Figures/PMC_ABC.png')
-		plt.show()
+		plt.savefig('./Figures/1d_gaussian/PMC_ABC.png')
+		plt.close()
+		# plt.show()
 	# plot()
 
 	return theta_
@@ -350,7 +355,8 @@ def first_order_Gaussian_MLE():
 		ax.set_xlim([0, 10])
 		ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax.set_yticks([]);
-		plt.show()
+		# plt.show()
+		plt.close()
 
 	return MLE, asymptotic_likelihood
 
@@ -378,5 +384,5 @@ ax.set_xlim([0, 10])
 ax.set_xlabel('θ')
 ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 ax.set_yticks([])
-plt.savefig('./Figures/likelihoods_seed123_2.png')
-# plt.show()
+plt.savefig('./Figures/1d_gaussian/likelihoods_seed123_2.png')
+plt.close()
