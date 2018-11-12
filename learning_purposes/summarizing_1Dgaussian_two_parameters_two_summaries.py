@@ -69,21 +69,30 @@ def generate_data(theta1, theta2, n_samples = 1, train=False):
 					)
 				, -1, 0)
 
+def generate_data(θ, train = None):
+	'''Train is whether the upper and lower derivatives are calculated '''
+	if train is not None:
+		holder = np.zeros([θ.shape[0]] + [θ.shape[1]] + input_shape)
+		for i in range(θ.shape[1]):
+			params = np.copy(θ)
+			params[:, i] += train[i]
+			holder[:, i, :] = np.moveaxis(np.random.normal(params[:, 0], np.sqrt(params[:, 1]), input_shape + [θ.shape[0]]), -1, 0)
+		return holder																							  
+	else:
+		return np.moveaxis(np.random.normal(θ[:, 0], np.sqrt(θ[:, 1]), input_shape + [θ.shape[0]]), -1, 0)
+
 
 # 10 data points of Gaussian zero-mean noise
-input_shape = [100] 
+input_shape = [10] 
 # Fiducial parameter and perturbed values just above and below
-theta_fid = 0. # mean
-theta2_fid = 1. # variance
-delta_theta = 0.1
+theta_fid = np.array([0.,1.]) # mean and variance
+delta_theta = np.array([0.1,0.05])
 
 ''' Generate train data '''
 
 # number of simulations
 n_s = 1000
 n_train = 1 # splits, for if it doesnt fit into memory
-
-t = generate_data(theta_fid,theta2_fid,(n_train*n_s), train = False)
 
 # use less simulations for numerical derivative
 derivative_fraction = 0.05
@@ -92,43 +101,31 @@ n_p = int(n_s * derivative_fraction)
 # set a seed to surpress the sample variance
 seed = np.random.randint(1e6)
 np.random.seed(seed)
-# Perturb theta1 minus delta theta
-t_m1 = generate_data(theta_fid - delta_theta, theta2_fid,(n_train*n_p), train = True) 
-# Perturb theta2 minus delta theta
-t_m2 = generate_data(theta_fid, theta2_fid - delta_theta,(n_train*n_p), train= True)
-# Concatenate these into a vector
-t_m = np.concatenate( (t_m1, t_m2), axis=1) # I think this is the correct way
-
-# set a seed to surpress the sample variance
+# Perturb lower 
+t_m = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = -delta_theta)
 np.random.seed(seed)
-# Perturb theta1 plus delta theta
-t_p1 = generate_data(theta_fid + delta_theta,theta2_fid,(n_train*n_p), train = True) 
-# Perturb theta2 plus delta theta
-t_p2 = generate_data(theta_fid, theta2_fid + delta_theta,(n_train*n_p), train= True)
-t_p = np.concatenate( (t_p1, t_p2), axis=1) # I think this is the correct way
-
+# Perturb higher 
+t_p = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = delta_theta)
 np.random.seed()
 
-# denominator of the derivative 
-derivative_denominator = 1. / (2. * delta_theta)
-# needs to be stored in an array of shape [number of parameters]
-der_den = np.array([derivative_denominator, derivative_denominator]) 
+t = generate_data(np.array([theta_fid for i in range(n_train * n_s)]), train = None)
+np.random.seed()
 
+der_den = 1. / (2. * delta_theta)
 
 data = {"x_central": t, "x_m": t_m, "x_p":t_p}
 
 # Repeat the same story to generate training data
-tt = generate_data(theta_fid,theta2_fid, n_s, train=False)
 seed = np.random.randint(1e6)
 np.random.seed(seed)
-tt_m1 = generate_data(theta_fid - delta_theta,theta2_fid,n_p, train=True)
-tt_m2 = generate_data(theta_fid, theta2_fid - delta_theta,n_p, train=True)
-tt_m = np.concatenate( (tt_m1, tt_m2), axis=1)
-
+# Perturb lower 
+tt_m = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = -delta_theta)
 np.random.seed(seed)
-tt_p1 = generate_data(theta_fid + delta_theta, theta2_fid,n_p, train=True)
-tt_p2 = generate_data(theta_fid, theta2_fid + delta_theta, n_p, train=True)
-tt_p = np.concatenate( (tt_p1, tt_p2), axis=1)
+# Perturb higher 
+tt_p = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = delta_theta)
+np.random.seed()
+
+tt = generate_data(np.array([theta_fid for i in range(n_train * n_s)]), train = None)
 np.random.seed()
 data["x_central_test"] = tt
 data["x_m_test"] = tt_m
@@ -144,7 +141,7 @@ def plot_data():
 	# ax.set_xlim([0, 9])
 	ax.set_xticks([])
 	ax.set_ylabel("Data amplitude");
-	plt.savefig('./Figures/1d_gaussian2params/data_visualization_2summaries.png')
+	plt.savefig('./Figures/1d_gaussian2params/2_summaries/data_visualization.png')
 	plt.close()
 
 plot_data()
@@ -218,7 +215,7 @@ def plot_derivatives():
 	ax[1, 1].set_xticks([])
 	ax[1, 1].set_ylabel("Difference between derivative data amplitudes");
 
-	plt.savefig('./Figures/1d_gaussian2params/derivatives_visualization_2summaries.png')
+	plt.savefig('./Figures/1d_gaussian2params/2_summaries/derivatives_visualization.png')
 	plt.close()
 
 plot_derivatives()
@@ -226,7 +223,7 @@ plot_derivatives()
 parameters = {
     'verbose': True,
     'number of simulations': n_s,
-    'fiducial θ': np.array([theta_fid,theta2_fid]), # I think it works like this
+    'fiducial θ': theta_fid,
     'derivative denominator': der_den,
     'differentiation fraction': derivative_fraction,
     'number of summaries': 2,
@@ -239,18 +236,19 @@ parameters = {
     'bb': 0.1,
     'activation': tf.nn.leaky_relu,
     'α': 0.01,
-    'hidden layers': [256,256,256]
+    # 'hidden layers': [512,256,256,256]
+    'hidden layers': [128,128]
 }
 
 # Initialize the IMNN
 n = IMNN.IMNN(parameters=parameters)
-eta = 1e-3
+eta = 1e-5
 # Initialize input tensors, build network and define optimalization scheme
 n.setup(η = eta)
 # can change the optimization scheme (although adam was found to be unstable)
 # n.backpropagate = tf.train.AdamOptimizer(eta).minimize(n.Λ) apparently doesnt work
 
-num_epochs = 700
+num_epochs = 10000
 keep_rate = 0.8
 
 n.train(num_epochs = num_epochs, n_train = n_train, keep_rate = keep_rate
@@ -326,7 +324,7 @@ def plot_variables():
 	ax[6].set_xlabel('Number of epochs')
 	ax[6].set_xlim([0, len(epochs)])
 
-	plt.savefig('./Figures/1d_gaussian2params/variables_vs_epochs_2summaries.png')
+	plt.savefig('./Figures/1d_gaussian2params/2_summaries/variables_vs_epochs.png')
 	plt.close()
 
 	print ('Maximum Fisher info on train data:',np.max(n.history["det(F)"]))
@@ -334,7 +332,6 @@ def plot_variables():
 	
 	print ('Maximum Fisher info on test data:',np.max(n.history["det(test F)"]))
 	print ('Final Fisher info on test data:',(n.history["det(test F)"][-1]))
-
 
 plot_variables()
 
@@ -352,7 +349,7 @@ def ABC():
 		ax.set_xticks([])
 		ax.set_yticks([])
 		ax.set_xlabel('Simulated real image');
-		plt.savefig('./Figures/1d_gaussian2params/real_data_2summaries.png')
+		plt.savefig('./Figures/1d_gaussian2params/2_summaries/real_data.png')
 		plt.close()
 
 	# show_real_data()
@@ -398,7 +395,7 @@ def ABC():
 
 
 	def plot_samples():
-		fig, ax = plt.subplots(2, 2, sharex = 'col', figsize = (10, 10))
+		fig, ax = plt.subplots(4, 2, sharex = 'col', figsize = (10, 10))
 		# plt.subplots_adjust(hspace = 0)
 		theta1 = theta[:,0]
 		theta2 = theta[:,1]
@@ -427,30 +424,30 @@ def ABC():
 		ax[1, 1].set_yticks([])
 
 		#  This doesnt make sense to do
-		# ax[2, 0].set_title('Epsilon is chosen to be %.2f'%epsilon2)
-		# ax[2, 0].scatter(theta1[accept_indices2] , s[accept_indices2, 0], s = 1)
-		# ax[2, 0].scatter(theta1[reject_indices2], s[reject_indices2, 0], s = 1, alpha = 0.1)
-		# ax[2, 0].plot([0, 10], [summary[1], summary[1]], color = 'black', linestyle = 'dashed')
-		# ax[2, 0].set_ylabel('Network output', labelpad = 0)
-		# ax[2, 0].set_xlim([0, 10])
-		# ax[3, 0].hist(theta1[accept_indices2], np.linspace(0, 10, 100)
-		# 	, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
-		# ax[3, 0].set_xlabel('$\\theta_1$')
-		# ax[3, 0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
-		# ax[3, 0].set_yticks([])
+		ax[2, 0].set_title('Epsilon is chosen to be %.2f'%epsilon2)
+		ax[2, 0].scatter(theta1[accept_indices2] , s[accept_indices2, 0], s = 1)
+		ax[2, 0].scatter(theta1[reject_indices2], s[reject_indices2, 0], s = 1, alpha = 0.1)
+		ax[2, 0].plot([0, 10], [summary[1], summary[1]], color = 'black', linestyle = 'dashed')
+		ax[2, 0].set_ylabel('Network output', labelpad = 0)
+		ax[2, 0].set_xlim([0, 10])
+		ax[3, 0].hist(theta1[accept_indices2], np.linspace(0, 10, 100)
+			, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+		ax[3, 0].set_xlabel('$\\theta_1$')
+		ax[3, 0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+		ax[3, 0].set_yticks([])
 
-		# ax[2, 1].scatter(theta2[accept_indices2] , s[accept_indices2, 0], s = 1)
-		# ax[2, 1].scatter(theta2[reject_indices2], s[reject_indices2, 0], s = 1, alpha = 0.1)
-		# ax[2, 1].plot([0, 10], [summary[1], summary[1]], color = 'black', linestyle = 'dashed')
-		# ax[2, 1].set_ylabel('Network output', labelpad = 0)
-		# ax[2, 1].set_xlim([0, 10])
-		# ax[3, 1].hist(theta2[accept_indices2], np.linspace(0, 10, 100)
-		# 	, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
-		# ax[3, 1].set_xlabel('$\\theta_2$')
-		# ax[3, 1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
-		# ax[3, 1].set_yticks([])
+		ax[2, 1].scatter(theta2[accept_indices2] , s[accept_indices2, 0], s = 1)
+		ax[2, 1].scatter(theta2[reject_indices2], s[reject_indices2, 0], s = 1, alpha = 0.1)
+		ax[2, 1].plot([0, 10], [summary[1], summary[1]], color = 'black', linestyle = 'dashed')
+		ax[2, 1].set_ylabel('Network output', labelpad = 0)
+		ax[2, 1].set_xlim([0, 10])
+		ax[3, 1].hist(theta2[accept_indices2], np.linspace(0, 10, 100)
+			, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+		ax[3, 1].set_xlabel('$\\theta_2$')
+		ax[3, 1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+		ax[3, 1].set_yticks([])
 
-		plt.savefig('./Figures/1d_gaussian2params/ABC_2summaries.png')
+		plt.savefig('./Figures/1d_gaussian2params/2_summaries/ABC.png')
 		plt.show()
 
 	plot_samples()
@@ -495,7 +492,7 @@ def PMC_ABC():
 		ax[1].set_xlabel('θ')
 		ax[1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax[1].set_yticks([]);
-		plt.savefig('./Figures/1d_gaussian2params/PMC_ABC_2summaries.png')
+		plt.savefig('./Figures/1d_gaussian2params/2_summaries/PMC_ABC.png')
 		plt.close()
 		# plt.show()
 	plot()
@@ -522,7 +519,7 @@ def first_order_Gaussian_MLE():
 		ax.set_xlim([0, 10])
 		ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 		ax.set_yticks([])
-		plt.savefig('./Figures/1d_gaussian2params/Gaussian_MLE_dense_2summaries.png')
+		plt.savefig('./Figures/1d_gaussian2params/2_summaries/Gaussian_MLE_dense.png')
 		plt.close()
 	return MLE, asymptotic_likelihood
 
@@ -552,6 +549,6 @@ ax.set_xlim([0, 10])
 ax.set_xlabel('θ')
 ax.set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 ax.set_yticks([])
-plt.savefig('./Figures/1d_gaussian2params/likelihoods_dense_2summaries.png')
+plt.savefig('./Figures/1d_gaussian2params/2_summaries/likelihoods_dense.png')
 # plt.show()
 plt.close()

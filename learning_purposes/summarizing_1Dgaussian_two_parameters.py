@@ -25,111 +25,62 @@ import tqdm
 
 tf.reset_default_graph() # start fresh
 
-def generate_data_test(theta, train=False):
-	'''
-	Fiducial parameter is NOT passed as a list for testing purposes
-
-	Returns: array of shape (n_s*n_train,input_shape) draws from norm dist
-	'''
-	if train:
-		return np.moveaxis(np.random.normal(0., np.sqrt(theta[0])
-			, [1] + input_shape + [len(theta)]), -1, 0)
-	else: 
-		return np.moveaxis(np.random.normal(0., np.sqrt(theta[0])
-			, input_shape + [len(theta)]), -1, 0)
-
-def generate_data(theta1, theta2, n_samples = 1, train=False):
-	'''
-
-	Returns: array of shape (n_samples,input_shape) draws 
-	from normal dist with mean=theta1 and std = theta2
-	'''
-
-	mean = theta1
-	std = np.sqrt(theta2)
-	
-	# e.g: input_shape = [10,10,1], n_samples = 1000, len(mean) = 2
-	# multivariate_normal returns shape (10,10,1,1000,2)
-	# therefore we move the second to last axis to the first
-	# so we get shape (1000,10,10,1,2)
-
-	# but also, since the multivariate Gaussian returns ((shape,2)) always
-	# we take all but the last argument of the input shape,
-	# which is then required to be 2
-	if train:
-		return np.moveaxis(
-					np.random.normal(mean,std, 
-							size = [1] + input_shape + [n_samples]
-					)
-				, -1, 0)
+def generate_data(θ, train = None):
+	'''Train is whether the upper and lower derivatives are calculated '''
+	if train is not None:
+		holder = np.zeros([θ.shape[0]] + [θ.shape[1]] + input_shape)
+		for i in range(θ.shape[1]):
+			params = np.copy(θ)
+			params[:, i] += train[i]
+			holder[:, i, :] = np.moveaxis(np.random.normal(params[:, 0], np.sqrt(params[:, 1]), input_shape + [θ.shape[0]]), -1, 0)
+		return holder																							  
 	else:
-		return np.moveaxis(
-					np.random.normal(mean,std, 
-							size = input_shape + [n_samples]
-					)
-				, -1, 0)
-
+		return np.moveaxis(np.random.normal(θ[:, 0], np.sqrt(θ[:, 1]), input_shape + [θ.shape[0]]), -1, 0)
 
 # 10 data points of Gaussian zero-mean noise
-input_shape = [10000] 
+input_shape = [10] 
 # Fiducial parameter and perturbed values just above and below
-theta_fid = 3. # mean
-theta2_fid = 1. # variance
-delta_theta1 = 0.1
-delta_theta2 = 0.4
+theta_fid = np.array([0.,1.]) # mean and variance
+delta_theta = np.array([0.1,0.05])
 
 ''' Generate train data '''
 
 # number of simulations
-n_s = 10000
+n_s = 1000
 n_train = 1 # splits, for if it doesnt fit into memory
 
-t = generate_data(theta_fid,theta2_fid,(n_train*n_s), train = False)
-
 # use less simulations for numerical derivative
-derivative_fraction = 0.05
+derivative_fraction = 0.20
 n_p = int(n_s * derivative_fraction)
 
 # set a seed to surpress the sample variance
 seed = np.random.randint(1e6)
 np.random.seed(seed)
-# Perturb theta1 minus delta theta
-t_m1 = generate_data(theta_fid - delta_theta1, theta2_fid,(n_train*n_p), train = True) 
-# Perturb theta2 minus delta theta
-t_m2 = generate_data(theta_fid, theta2_fid - delta_theta2,(n_train*n_p), train= True)
-# Concatenate these into a vector
-t_m = np.concatenate( (t_m1, t_m2), axis=1) # I think this is the correct way
-
-# set same seed to surpress the sample variance
+# Perturb lower 
+t_m = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = -delta_theta)
 np.random.seed(seed)
-# Perturb theta1 plus delta theta
-t_p1 = generate_data(theta_fid + delta_theta1,theta2_fid,(n_train*n_p), train = True) 
-# Perturb theta2 plus delta theta
-t_p2 = generate_data(theta_fid, theta2_fid + delta_theta2,(n_train*n_p), train= True)
-t_p = np.concatenate( (t_p1, t_p2), axis=1) # I think this is the correct way
-
+# Perturb higher 
+t_p = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = delta_theta)
 np.random.seed()
 
-# denominator of the derivative 
-# needs to be stored in an array of shape [number of parameters]
-der_den = np.array([1. / (2. * delta_theta1), 1. / (2. * delta_theta2)]) 
+t = generate_data(np.array([theta_fid for i in range(n_train * n_s)]), train = None)
+np.random.seed()
+
+der_den = 1. / (2. * delta_theta)
 
 data = {"x_central": t, "x_m": t_m, "x_p":t_p}
 
 # Repeat the same story to generate training data
-tt = generate_data(theta_fid,theta2_fid, n_s, train=False)
 seed = np.random.randint(1e6)
 np.random.seed(seed)
-# Perturb minus delta theta
-tt_m1 = generate_data(theta_fid - delta_theta1,theta2_fid,n_p, train=True)
-tt_m2 = generate_data(theta_fid, theta2_fid - delta_theta2,n_p, train=True)
-tt_m = np.concatenate( (tt_m1, tt_m2), axis=1)
-
+# Perturb lower 
+tt_m = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = -delta_theta)
 np.random.seed(seed)
-# Perturb plus delta theta
-tt_p1 = generate_data(theta_fid + delta_theta1, theta2_fid,n_p, train=True)
-tt_p2 = generate_data(theta_fid, theta2_fid + delta_theta2, n_p, train=True)
-tt_p = np.concatenate( (tt_p1, tt_p2), axis=1)
+# Perturb higher 
+tt_p = generate_data(np.array([theta_fid for i in range(n_train * n_p)]), train = delta_theta)
+np.random.seed()
+
+tt = generate_data(np.array([theta_fid for i in range(n_train * n_s)]), train = None)
 np.random.seed()
 data["x_central_test"] = tt
 data["x_m_test"] = tt_m
@@ -252,34 +203,37 @@ def plot_derivatives():
 plot_derivatives()
 
 parameters = {
-    'verbose': True,
-    'number of simulations': n_s,
-    'fiducial θ': np.array([theta_fid,theta2_fid]), # I think it works like this
-    'derivative denominator': der_den,
-    'differentiation fraction': derivative_fraction,
-    'number of summaries': 1,
-    'calculate MLE': True,
-    'prebuild': True,
-    'input shape': input_shape,
-    'preload data': data,
-    'save file': "data_oneD/saved_model",
-    'wv': 0.,
-    'bb': 0.1,
-    'activation': tf.nn.leaky_relu,
-    'α': 0.01,
-    # 'hidden layers': [256,256]
-    'hidden layers': [512,256,256,256]
+	'verbose': True,
+	'number of simulations': n_s,
+	'fiducial θ': theta_fid,
+	'derivative denominator': der_den,
+	'differentiation fraction': derivative_fraction,
+	'number of summaries': 1,
+	'calculate MLE': True,
+	'prebuild': True,
+	'input shape': input_shape,
+	'preload data': data,
+	'save file': "data_oneD/saved_model",
+	'wv': 0.,
+	'bb': 0.1,
+	'activation': tf.nn.leaky_relu,
+	'α': 0.01,
+	'hidden layers': [128, 128]
+	# 'hidden layers': [256,256]
+	# 'hidden layers': [512,256,256,256]
 }
 
 # Initialize the IMNN
 n = IMNN.IMNN(parameters=parameters)
-eta = 1e-3
+eta = 1e-5
 # Initialize input tensors, build network and define optimalization scheme
 n.setup(η = eta)
 # can change the optimization scheme (although adam was found to be unstable)
-# n.backpropagate = tf.train.AdamOptimizer(eta).minimize(n.Λ) apparently doesnt work
+# n.backpropagate = tf.train.AdamOptimizer(eta, epsilon = 1.).minimize(n.Λ)  
+# n.backpropagate = tf.train.AdadeltaOptimizer(1e-3).minimize(n.Λ)  
 
-num_epochs = 100
+
+num_epochs = 10000
 keep_rate = 0.8
 
 n.train(num_epochs = num_epochs, n_train = n_train, keep_rate = keep_rate
@@ -292,7 +246,7 @@ def plot_variables():
 	epochs = np.arange(end)
 	a, = ax[0].plot(epochs, n.history["det(F)"], label = 'Training data')
 	b, = ax[0].plot(epochs, n.history["det(test F)"], label = 'Test data')
-	ax[0].axhline(y=5,ls='--',color='k')
+	# ax[0].axhline(y=5,ls='--',color='k')
 	ax[0].legend(frameon = False)
 	ax[0].set_ylabel(r'$|{\bf F}_{\alpha\beta}|$')
 	ax[0].set_title('Final Fisher info on test data: %.3f'%n.history["det(test F)"][-1])
@@ -306,11 +260,12 @@ def plot_variables():
 	ax[2].set_xlabel('Number of epochs')
 	ax[2].set_ylabel(r'$|{\bf C}|$')
 	ax[2].set_xlim([0, len(epochs)]);
-
-	# Derivative wrt to theta1                   theta1 is column 0
+	
+	'''
+	# Derivative wrt to theta1				   theta1 is column 0
 	ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,0].flatten()
 		, color = 'C0', label='theta1',alpha=0.5)
-	# Derivative wrt to theta2                   theta1 is column 1
+	# Derivative wrt to theta2				   theta1 is column 1
 	ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,1].flatten()
 		, color = 'C0', ls='dashed', label='theta2',alpha=0.5)
 
@@ -328,9 +283,7 @@ def plot_variables():
 	ax[4].set_ylabel('μ')
 	ax[4].set_xlabel('Number of epochs')
 	ax[4].set_xlim([0, len(epochs)])
-	plt.savefig('./Figures/1d_gaussian2params/variables_vs_epochs.png')
-	plt.show()
-	plt.close()
+	'''
 
 	print ('Maximum Fisher info on train data:',np.max(n.history["det(F)"]))
 	print ('Final Fisher info on train data:',(n.history["det(F)"][-1]))
@@ -339,13 +292,18 @@ def plot_variables():
 	print ('Final Fisher info on test data:',(n.history["det(test F)"][-1]))
 
 
+	plt.savefig('./Figures/1d_gaussian2params/variables_vs_epochs.png')
+	plt.show()
+	plt.close()
+
+
 plot_variables()
 
 # ===============================================================
 # Approximate Bayesian computation with the calculated summary:
 
 # First calculate the real data
-real_data = generate_data(theta_fid,theta2_fid, 1, train = False)
+real_data = generate_data(np.array([theta_fid]), train = None)
 
 def ABC():
 
@@ -378,7 +336,7 @@ def ABC():
 	# sampled parameter values, summary of real data, summaries of generated data
 	# distances of generated data to real data, Fisher info of real data
 	theta, summary, s, ro, F = n.ABC(real_data = real_data, prior = [0, 6]
-		, draws = 10000, generate_simulation = generate_data
+		, draws = 100000, generate_simulation = generate_data
 		, at_once = False, data = data)
 	#at_once = False will create only one simulation at a time
 
