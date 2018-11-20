@@ -30,7 +30,7 @@ echo "alias kerastf='source /path/to/miniconda/bin/activate kerastf'"
 # cp -r /net/reusel/data1/osinga/miniconda/* ./ 
 
 # or maybe even use only a symbolic link
-# ls -s ./ /net/reusel/data1/osinga/miniconda/*
+# ln -s /net/reusel/data1/osinga/miniconda/ /data1/$USER/
 
 # > To activate
 # source /data1/$USER/miniconda/bin/activate kerastf

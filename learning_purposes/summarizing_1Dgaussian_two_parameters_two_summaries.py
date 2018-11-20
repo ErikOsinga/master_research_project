@@ -25,50 +25,6 @@ import tqdm
 
 tf.reset_default_graph() # start fresh
 
-def generate_data_test(theta, train=False):
-	'''
-	Fiducial parameter is NOT passed as a list for testing purposes
-
-	Returns: array of shape (n_s*n_train,input_shape) draws from norm dist
-	'''
-	if train:
-		return np.moveaxis(np.random.normal(0., np.sqrt(theta[0])
-			, [1] + input_shape + [len(theta)]), -1, 0)
-	else: 
-		return np.moveaxis(np.random.normal(0., np.sqrt(theta[0])
-			, input_shape + [len(theta)]), -1, 0)
-
-def generate_data(theta1, theta2, n_samples = 1, train=False):
-	'''
-
-	Returns: array of shape (n_samples,input_shape) draws 
-	from normal dist with mean=theta1 and std = theta2
-	'''
-
-	mean = theta1
-	std = np.sqrt(theta2)
-	
-	# e.g: input_shape = [10,10,1], n_samples = 1000, len(mean) = 2
-	# multivariate_normal returns shape (10,10,1,1000,2)
-	# therefore we move the second to last axis to the first
-	# so we get shape (1000,10,10,1,2)
-
-	# but also, since the multivariate Gaussian returns ((shape,2)) always
-	# we take all but the last argument of the input shape,
-	# which is then required to be 2
-	if train:
-		return np.moveaxis(
-					np.random.normal(mean,std, 
-							size = [1] + input_shape + [n_samples]
-					)
-				, -1, 0)
-	else:
-		return np.moveaxis(
-					np.random.normal(mean,std, 
-							size = input_shape + [n_samples]
-					)
-				, -1, 0)
-
 def generate_data(θ, train = None):
 	'''Train is whether the upper and lower derivatives are calculated '''
 	if train is not None:
@@ -81,12 +37,11 @@ def generate_data(θ, train = None):
 	else:
 		return np.moveaxis(np.random.normal(θ[:, 0], np.sqrt(θ[:, 1]), input_shape + [θ.shape[0]]), -1, 0)
 
-
 # 10 data points of Gaussian zero-mean noise
 input_shape = [10] 
 # Fiducial parameter and perturbed values just above and below
 theta_fid = np.array([0.,1.]) # mean and variance
-delta_theta = np.array([0.1,0.05])
+delta_theta = np.array([0.1,0.1])
 
 ''' Generate train data '''
 
@@ -95,7 +50,7 @@ n_s = 1000
 n_train = 1 # splits, for if it doesnt fit into memory
 
 # use less simulations for numerical derivative
-derivative_fraction = 0.05
+derivative_fraction = 0.20
 n_p = int(n_s * derivative_fraction)
 
 # set a seed to surpress the sample variance
@@ -195,6 +150,11 @@ def plot_derivatives():
 	ax[0, 0].set_title("Theta 1 (the mean)")
 	ax[0, 1].set_title("Theta 2 (the std)")
 
+	for i in range(2):
+		for j in range(2):
+			ax[i, j].set_xlim(0,9)
+	fig.suptitle('Showing only first 10 datapoints out of %i'%t.shape[1])
+
 	# Theta 1
 	ax[1, 0].axhline(xmin = 0., xmax = 1., y = 0., linestyle = 'dashed'
 				, color = 'black')
@@ -237,7 +197,9 @@ parameters = {
     'activation': tf.nn.leaky_relu,
     'α': 0.01,
     # 'hidden layers': [512,256,256,256]
-    'hidden layers': [128,128]
+    # 'hidden layers': [128,128]
+    'hidden layers': [256,256,256]
+
 }
 
 # Initialize the IMNN
@@ -249,7 +211,7 @@ n.setup(η = eta)
 # n.backpropagate = tf.train.AdamOptimizer(eta).minimize(n.Λ) apparently doesnt work
 
 num_epochs = 10000
-keep_rate = 0.8
+keep_rate = 0.6
 
 n.train(num_epochs = num_epochs, n_train = n_train, keep_rate = keep_rate
 	, data = data, history = True)
@@ -339,7 +301,7 @@ plot_variables()
 # Approximate Bayesian computation with the calculated summary:
 
 # First calculate the real data
-real_data = generate_data(theta_fid,theta2_fid, 1, train = False)
+real_data = generate_data(np.array([theta_fid]), train = None)
 
 def ABC():
 
@@ -371,9 +333,9 @@ def ABC():
 
 	# sampled parameter values, summary of real data, summaries of generated data
 	# distances of generated data to real data, Fisher info of real data
-	theta, summary, s, ro, F = n.ABC(real_data = real_data, prior = [0, 10]
+	theta, summary, s, ro, F = n.ABC(real_data = real_data, prior = [0, 6]
 		, draws = 100000, generate_simulation = generate_data
-		, at_once = False, data = data)
+		, at_once = True, data = data)
 	#at_once = False will create only one simulation at a time
 
 
@@ -382,13 +344,17 @@ def ABC():
 	
 	# For the first summary
 	epsilon1 = abs(summary[0]/10) # chosen quite arbitrarily
+	epsilon1 = 10
+
 	accept_indices1 = np.argwhere(ro < epsilon1)[:, 0]
 	reject_indices1 = np.argwhere(ro >= epsilon1)[:, 0]
 
 	# For the second summary
 	epsilon2 = abs(summary[1]/10) # chosen quite arbitrarily
+	epsilon2 = 5
 	accept_indices2 = np.argwhere(ro < epsilon2)[:, 0]
 	reject_indices2 = np.argwhere(ro >= epsilon2)[:, 0]
+
 
 	# plot output samples and histogram of the accepted samples
 	# accept_indices_total = np.bitwise_and( (ro < epsilon1), ro < epsilon2 )

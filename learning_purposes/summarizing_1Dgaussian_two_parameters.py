@@ -41,7 +41,7 @@ def generate_data(θ, train = None):
 input_shape = [10] 
 # Fiducial parameter and perturbed values just above and below
 theta_fid = np.array([0.,1.]) # mean and variance
-delta_theta = np.array([0.1,0.05])
+delta_theta = np.array([0.1,0.1])
 
 ''' Generate train data '''
 
@@ -208,7 +208,7 @@ parameters = {
 	'fiducial θ': theta_fid,
 	'derivative denominator': der_den,
 	'differentiation fraction': derivative_fraction,
-	'number of summaries': 1,
+	'number of summaries': 2,
 	'calculate MLE': True,
 	'prebuild': True,
 	'input shape': input_shape,
@@ -218,8 +218,8 @@ parameters = {
 	'bb': 0.1,
 	'activation': tf.nn.leaky_relu,
 	'α': 0.01,
-	'hidden layers': [128, 128]
-	# 'hidden layers': [256,256]
+	# 'hidden layers': [128, 128]
+	'hidden layers': [256,256, 256]
 	# 'hidden layers': [512,256,256,256]
 }
 
@@ -227,14 +227,14 @@ parameters = {
 n = IMNN.IMNN(parameters=parameters)
 eta = 1e-5
 # Initialize input tensors, build network and define optimalization scheme
+tf.reset_default_graph()
 n.setup(η = eta)
 # can change the optimization scheme (although adam was found to be unstable)
 # n.backpropagate = tf.train.AdamOptimizer(eta, epsilon = 1.).minimize(n.Λ)  
 # n.backpropagate = tf.train.AdadeltaOptimizer(1e-3).minimize(n.Λ)  
 
-
 num_epochs = 10000
-keep_rate = 0.8
+keep_rate = 0.6
 
 n.train(num_epochs = num_epochs, n_train = n_train, keep_rate = keep_rate
 	, data = data, history = True)
@@ -291,6 +291,9 @@ def plot_variables():
 	print ('Maximum Fisher info on test data:',np.max(n.history["det(test F)"]))
 	print ('Final Fisher info on test data:',(n.history["det(test F)"][-1]))
 
+	if np.max(n.history["det(test F)"]) == n.history["det(test F)"][-1]:
+		print ('Promising network found! ')
+		print ('Learning rate = %f, derivative_fraction = %f'%(eta,derivative_fraction))
 
 	plt.savefig('./Figures/1d_gaussian2params/variables_vs_epochs.png')
 	plt.show()
@@ -337,7 +340,7 @@ def ABC():
 	# distances of generated data to real data, Fisher info of real data
 	theta, summary, s, ro, F = n.ABC(real_data = real_data, prior = [0, 6]
 		, draws = 100000, generate_simulation = generate_data
-		, at_once = False, data = data)
+		, at_once = True, data = data)
 	#at_once = False will create only one simulation at a time
 
 
