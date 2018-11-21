@@ -75,7 +75,7 @@ class nholder(object):
 		self.modelloc = 'Models/' #location where the models (networks) are saved
 		
 		#the file in which the network settings will be saved
-		self.modelsettings_name = 'modelsettings.csv' 
+		self.modelsettings_name = 'modelsettings2.csv' 
 
 		self.modelsettings = {'Version' : str(self.modelversion),
 						'Learning rate': str(self.eta),
@@ -556,4 +556,8 @@ n = nholder1.create_network()
 nholder1.train_network(n)
 # # Plot the output
 nholder1.plot_variables(n,show=False)
-
+# # Perform ABC
+# real_data = generate_data(np.array([theta_fid]), train = None)
+# prior = [0, 6]
+# draws = 100000
+# nholder1.ABC(n, real_data, prior, draws, show=False)
