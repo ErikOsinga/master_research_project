@@ -489,13 +489,13 @@ n_train = 1 # splits, for if it doesnt fit into memory
 # use less simulations for numerical derivative
 derivative_fraction = 0.20
 eta = 1e-4
-num_epochs = int(1e5)
+num_epochs = int(2e4)
 keep_rate = 0.6
 verbose = 0
 # CNN
 hidden_layers = [[10, [5, 5], [2, 2], 'SAME'], [6, [3, 3], [1, 1], 'SAME'], 100, 100]
 
-initial_version = 1004
+initial_version = 1006
 
 version = initial_version
 
