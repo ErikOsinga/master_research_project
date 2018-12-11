@@ -420,7 +420,7 @@ class nholder(object):
 		if show: plt.show()
 		plt.close()
 
-	def ABC(self, n, real_data, prior, draws, show=False):
+	def ABC(self, n, real_data, prior, draws, show=False, epsilon=None):
 		""" 
 		Perform ABC
 		Only a uniform prior is implemented at the moment.
@@ -429,7 +429,7 @@ class nholder(object):
 		#______________________________________________________________
 		n 						class 	IMNN class as defined in IMNN.py
 		real_data 				array 	array containing true data
-		prior 					list 	lower and upper bound for uniform prior
+		prior 					list 	lower and upper bounds for uniform priors
 		draws 					int 	amount of draws from prior
 		show 					bool	whether or not plt.show() is called
 		
@@ -453,7 +453,7 @@ class nholder(object):
 
 		# Draws are accepted if the distance between the simulation summary and the 
 		# simulation of real data are close (i.e., smaller than some value epsilon)
-		epsilon = abs(summary/10) # chosen quite arbitrarily
+		if epsilon is None: epsilon = abs(summary[0]/10) # chosen quite arbitrarily
 		accept_indices = np.argwhere(ro < epsilon)[:, 0]
 		reject_indices = np.argwhere(ro >= epsilon)[:, 0]
 
@@ -468,25 +468,28 @@ class nholder(object):
 			ax[0, 0].set_title('Epsilon is chosen to be %.2f'%epsilon)
 			ax[0, 0].scatter(theta1[accept_indices] , s[accept_indices, 0], s = 1)
 			ax[0, 0].scatter(theta1[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
-			ax[0, 0].plot([0, 10], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
+			ax[0, 0].plot(prior[0], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
 			ax[0, 0].set_ylabel('Network output', labelpad = 0)
-			ax[0, 0].set_xlim([0, 10])
+			ax[0, 0].set_xlim(prior[0])
 			ax[1, 0].hist(theta1[accept_indices], np.linspace(0, 10, 100)
 				, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
-			ax[1, 0].set_xlabel('$\\theta_1$')
+			ax[1, 0].set_xlabel('$\\theta_1$ (mean)')
 			ax[1, 0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 			ax[1, 0].set_yticks([])
 
 			ax[0, 1].scatter(theta2[accept_indices] , s[accept_indices, 0], s = 1)
 			ax[0, 1].scatter(theta2[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
-			ax[0, 1].plot([0, 10], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
+			ax[0, 1].plot(prior[1], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
 			ax[0, 1].set_ylabel('Network output', labelpad = 0)
-			ax[0, 1].set_xlim([0, 10])
+			ax[0, 1].set_xlim(prior[1])
 			ax[1, 1].hist(theta2[accept_indices], np.linspace(0, 10, 100)
 				, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
-			ax[1, 1].set_xlabel('$\\theta_2$')
+			ax[1, 1].set_xlabel('$\\theta_2$ (variance)')
 			ax[1, 1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 			ax[1, 1].set_yticks([])
+
+			fig.suptitle("Only showing 1st network output summary out of %i \n Full network output on real data: %s"%(s.shape[1],str(summary)))
+
 
 			plt.savefig(f'{self.figuredir}ABC_{self.modelversion}.png')
 			if show: plt.show()
@@ -499,6 +502,79 @@ class nholder(object):
 		# using too small of a small training set
 
 		return theta, accept_indices
+
+	def PMC_ABC(self, n, real_data, prior, draws, num_keep, criterion = 0.1, show=False):
+		""" 
+		Perform PMC ABC, which is a way of reducing the number of draws
+		The inputs work in a very similar way to the ABC function above. If we 
+		want 1000 samples from the approximate distribution at the end of the
+		PMC we need to set num_keep = 1000. The initial random draw is initialised
+		with num_draws, the larger this is the better proposal distr will be on
+		the 1st iteration.
+
+
+		Only a uniform prior is implemented at the moment.
+
+		INPUTS
+		#______________________________________________________________
+		n 						class 	IMNN class as defined in IMNN.py
+		real_data 				array 	array containing true data
+		prior 					list 	lower and upper bounds for uniform priors
+		draws 					int 	number of initial draws from the prior
+		num_keep				int 	number of samples in the approximate posterior
+        criterion				float	ratio of number of draws wanted over number of draws needed
+		show 					bool	whether or not plt.show() is called
+		
+
+		RETURNS
+		#_____________________________________________________________
+		theta					list 	sampled parameter values in the approximate posterior			
+	
+		"""
+
+		# W = weighting of samples, total_draws = total num draws so far
+		theta_, summary_, ro_, s_, W, total_draws, F = n.PMC(real_data = real_data
+			, prior = prior, num_draws = draws, num_keep = num_keep
+			, generate_simulation = self.generate_data, criterion = criterion
+			, at_once = True, samples = None, data = self.data)
+
+		# plot output samples and histogram of approximate posterior
+		def plot():
+
+			theta1 = theta_[:,0]
+			theta2 = theta_[:,1]
+			
+			fig, ax = plt.subplots(2, 2, sharex = True, figsize = (10, 10))
+			plt.subplots_adjust(hspace = 0)
+			ax[0,0].scatter(theta1 , s_[:,0], s = 1)
+			ax[0,0].plot(prior[0], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
+			ax[0,0].set_ylabel('Network output', labelpad = 0)
+			ax[0,0].set_xlim(prior[0])
+			ax[0,0].set_ylim([np.min(s_[:,0]), np.max(s_[:,0])])
+			ax[1,0].hist(theta1, np.linspace(*prior[0], 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+			ax[1,0].set_xlabel('$\\theta_1$ (mean)')
+			ax[1,0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+			ax[1,0].set_yticks([])
+
+			ax[0,1].scatter(theta2 , s_[:,0], s = 1)
+			ax[0,1].plot(prior[0], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
+			ax[0,1].set_ylabel('Network output', labelpad = 0)
+			ax[0,1].set_xlim(prior[1])
+			ax[0,1].set_ylim([np.min(s_[:,0]), np.max(s_[:,0])])
+			ax[1,1].hist(theta2, np.linspace(*prior[1], 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+			ax[1,1].set_xlabel('$\\theta_2$ (variance)')
+			ax[1,1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
+			ax[1,1].set_yticks([])
+
+			fig.suptitle("Only showing 1st network output summary out of %i \n Full network output on real data: %s"%(s_.shape[1],str(summary_)))
+
+			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}.png')
+			if show: plt.show()
+			plt.close()
+		plot()
+
+		return theta_
+
 
 def generate_data(θ, train = None):
 	'''Train is whether the upper and lower derivatives are calculated '''
@@ -527,7 +603,7 @@ num_epochs = 10000
 keep_rate = 0.6
 verbose = 0
 hidden_layers = [256,256,256]
-initial_version = 1000
+initial_version = 1005
 
 version = initial_version
 
@@ -557,7 +633,11 @@ nholder1.train_network(n)
 # # Plot the output
 nholder1.plot_variables(n,show=False)
 # # Perform ABC
-# real_data = generate_data(np.array([theta_fid]), train = None)
-# prior = [0, 6]
-# draws = 100000
-# nholder1.ABC(n, real_data, prior, draws, show=False)
+real_data = generate_data(np.array([theta_fid]), train = None)
+prior = [[0, 5], [0,6]] # [ [prior1], [prior2], etc.. ]
+draws = 1000000
+nholder1.ABC(n, real_data, prior, draws, show=True, epsilon=2.8)
+
+
+num_keep = int(1e4)
+nholder1.PMC_ABC(n, real_data, prior, int(1e5), num_keep, criterion = 0.1, show=True)
