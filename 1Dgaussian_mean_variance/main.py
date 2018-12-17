@@ -599,11 +599,12 @@ n_train = 1 # splits, for if it doesnt fit into memory
 # use less simulations for numerical derivative
 derivative_fraction = 0.20
 eta = 1e-5
-num_epochs = 10000
+num_epochs = 20000
 keep_rate = 0.6
 verbose = 0
 hidden_layers = [256,256,256]
-initial_version = 1005
+initial_version = 1008
+# Version < 1006 erroneously uses np.sqrt(cov) instead of cov in IMNN code
 
 version = initial_version
 
@@ -639,5 +640,6 @@ draws = 1000000
 nholder1.ABC(n, real_data, prior, draws, show=True, epsilon=2.8)
 
 
-num_keep = int(1e4)
-nholder1.PMC_ABC(n, real_data, prior, int(1e5), num_keep, criterion = 0.1, show=True)
+num_keep = int(1e3)
+inital_draws = int(1e4)
+nholder1.PMC_ABC(n, real_data, prior, inital_draws, num_keep, criterion = 0.1, show=True)
