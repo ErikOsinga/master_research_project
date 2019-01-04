@@ -602,8 +602,9 @@ class nholder(object):
 			fig = corner.corner(theta_, fig=fig, truths = theta_fid
 				, labels=['$\\theta_1$ (mean)','$\\theta_2$ (variance)']
 				, plot_contours=True, range=prior, hist_kwargs=hist_kwargs)
-			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}_2D.png')
 			fig.suptitle("Approximate posterior after PMC ABC, num_keep = %i"%num_keep)
+			
+			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}_2D.png')
 			if show: plt.show()
 			plt.close()
 
@@ -614,6 +615,7 @@ class nholder(object):
 			plt.xlabel('Iteration')
 			plt.ylabel('$\epsilon$')
 			plt.legend()
+			
 			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}_epsilon.png')
 			if show: plt.show()
 			plt.close()
