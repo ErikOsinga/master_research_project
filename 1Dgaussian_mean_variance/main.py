@@ -9,7 +9,8 @@ import IMNN # make sure the path to the IMNN is given
 import tqdm
 sys.path.insert(-1,'../') # change to path where utils_mrp is located
 import utils_mrp
-
+# For making corner plots of the posterior
+import corner # Reference: https://github.com/dfm/corner.py/
 """
 Summarizing a 1D gaussian with unkown mean and variance
 
@@ -420,7 +421,7 @@ class nholder(object):
 		if show: plt.show()
 		plt.close()
 
-	def ABC(self, n, real_data, prior, draws, show=False, epsilon=None):
+	def ABC(self, n, real_data, prior, draws, show=False, epsilon=None, oneD='both'):
 		""" 
 		Perform ABC
 		Only a uniform prior is implemented at the moment.
@@ -432,7 +433,8 @@ class nholder(object):
 		prior 					list 	lower and upper bounds for uniform priors
 		draws 					int 	amount of draws from prior
 		show 					bool	whether or not plt.show() is called
-		
+		oneD 					bool 	whether to plot one dimensional posteriors
+										or two dimensional with the corner module
 
 		RETURNS
 		#_____________________________________________________________
@@ -453,36 +455,35 @@ class nholder(object):
 
 		# Draws are accepted if the distance between the simulation summary and the 
 		# simulation of real data are close (i.e., smaller than some value epsilon)
-		if epsilon is None: epsilon = abs(summary[0]/10) # chosen quite arbitrarily
+		if epsilon is None: epsilon = np.linalg.norm(summary)/8. # chosen quite arbitrarily
 		accept_indices = np.argwhere(ro < epsilon)[:, 0]
 		reject_indices = np.argwhere(ro >= epsilon)[:, 0]
 
-
-		# plot output samples and histogram of the accepted samples
-		def plot_samples():
+		# plot output samples and histogram of the accepted samples in 1D
+		def plot_samples_oneD():
 			fig, ax = plt.subplots(2, 2, sharex = 'col', figsize = (10, 10))
 			plt.subplots_adjust(hspace = 0)
 			theta1 = theta[:,0]
 			theta2 = theta[:,1]
 
 			ax[0, 0].set_title('Epsilon is chosen to be %.2f'%epsilon)
-			ax[0, 0].scatter(theta1[accept_indices] , s[accept_indices, 0], s = 1)
 			ax[0, 0].scatter(theta1[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
+			ax[0, 0].scatter(theta1[accept_indices] , s[accept_indices, 0], s = 1)
 			ax[0, 0].plot(prior[0], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
 			ax[0, 0].set_ylabel('Network output', labelpad = 0)
 			ax[0, 0].set_xlim(prior[0])
-			ax[1, 0].hist(theta1[accept_indices], np.linspace(0, 10, 100)
+			ax[1, 0].hist(theta1[accept_indices], bins=np.linspace(*prior[0], 100)
 				, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
 			ax[1, 0].set_xlabel('$\\theta_1$ (mean)')
 			ax[1, 0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 			ax[1, 0].set_yticks([])
 
-			ax[0, 1].scatter(theta2[accept_indices] , s[accept_indices, 0], s = 1)
 			ax[0, 1].scatter(theta2[reject_indices], s[reject_indices, 0], s = 1, alpha = 0.1)
+			ax[0, 1].scatter(theta2[accept_indices] , s[accept_indices, 0], s = 1)
 			ax[0, 1].plot(prior[1], [summary[0], summary[0]], color = 'black', linestyle = 'dashed')
 			ax[0, 1].set_ylabel('Network output', labelpad = 0)
 			ax[0, 1].set_xlim(prior[1])
-			ax[1, 1].hist(theta2[accept_indices], np.linspace(0, 10, 100)
+			ax[1, 1].hist(theta2[accept_indices], np.linspace(*prior[1], 100)
 				, histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
 			ax[1, 1].set_xlabel('$\\theta_2$ (variance)')
 			ax[1, 1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
@@ -490,12 +491,32 @@ class nholder(object):
 
 			fig.suptitle("Only showing 1st network output summary out of %i \n Full network output on real data: %s"%(s.shape[1],str(summary)))
 
-
-			plt.savefig(f'{self.figuredir}ABC_{self.modelversion}.png')
+			plt.savefig(f'{self.figuredir}ABC_{self.modelversion}_1D.png')
 			if show: plt.show()
 			plt.close()
 
-		plot_samples()
+		# plot approximate posterior of the accepted samples in 2D
+		def plot_samples_twoD():
+			hist_kwargs = {} # add kwargs to give to matplotlib hist funct
+			fig, ax = plt.subplots(2, 2, figsize = (10, 10))
+			fig = corner.corner(theta[accept_indices], fig=fig, truths = theta_fid
+				, labels=['$\\theta_1$ (mean)','$\\theta_2$ (variance)']
+				, plot_contours=True, range=prior, hist_kwargs=hist_kwargs)
+			fig.suptitle('Approximate posterior after ABC for %i draws'%draws)
+			plt.savefig(f'{self.figuredir}ABC_{self.modelversion}_2D.png')
+			if show: plt.show()
+			plt.close()
+
+		if oneD == 'both':
+			plot_samples()
+			plot_samples_twoD()
+		elif type(oneD) == bool:
+			if oneD: 
+				plot_samples()
+			else: 
+				plot_samples_twoD()
+		else: 
+			raise ValueError('Allowed values for oneD are "both", True or False')
 
 		# There can be a lot of theta draws which are unconstrained by the network
 		# because no similar structures were seen in the data, which is indicative of
@@ -503,7 +524,7 @@ class nholder(object):
 
 		return theta, accept_indices
 
-	def PMC_ABC(self, n, real_data, prior, draws, num_keep, criterion = 0.1, show=False):
+	def PMC_ABC(self, n, real_data, prior, draws, num_keep, criterion = 0.1, show=False, oneD='both'):
 		""" 
 		Perform PMC ABC, which is a way of reducing the number of draws
 		The inputs work in a very similar way to the ABC function above. If we 
@@ -524,57 +545,93 @@ class nholder(object):
 		num_keep				int 	number of samples in the approximate posterior
         criterion				float	ratio of number of draws wanted over number of draws needed
 		show 					bool	whether or not plt.show() is called
-		
+		oneD 					bool 	whether to plot one dimensional posteriors
+										or two dimensional with the corner module		
 
 		RETURNS
 		#_____________________________________________________________
 		theta					list 	sampled parameter values in the approximate posterior			
+		all_epsilon				list 	progression of epsilon during PMC		
 	
 		"""
 
 		# W = weighting of samples, total_draws = total num draws so far
-		theta_, summary_, ro_, s_, W, total_draws, F = n.PMC(real_data = real_data
+		theta_, summary_, ro_, s_, W, total_draws, F, all_epsilon = n.PMC(real_data = real_data
 			, prior = prior, num_draws = draws, num_keep = num_keep
 			, generate_simulation = self.generate_data, criterion = criterion
 			, at_once = True, samples = None, data = self.data)
 
 		# plot output samples and histogram of approximate posterior
-		def plot():
+		def plot_samples_oneD():
 
 			theta1 = theta_[:,0]
 			theta2 = theta_[:,1]
 			
-			fig, ax = plt.subplots(2, 2, sharex = True, figsize = (10, 10))
+			fig, ax = plt.subplots(2, 2, sharex = 'col', figsize = (10, 10))
 			plt.subplots_adjust(hspace = 0)
 			ax[0,0].scatter(theta1 , s_[:,0], s = 1)
 			ax[0,0].plot(prior[0], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
 			ax[0,0].set_ylabel('Network output', labelpad = 0)
-			ax[0,0].set_xlim(prior[0])
 			ax[0,0].set_ylim([np.min(s_[:,0]), np.max(s_[:,0])])
-			ax[1,0].hist(theta1, np.linspace(*prior[0], 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+			ax[0,0].set_xlim(prior[0])
+			ax[1,0].hist(theta1, bins= np.linspace(*prior[0], 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
 			ax[1,0].set_xlabel('$\\theta_1$ (mean)')
 			ax[1,0].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 			ax[1,0].set_yticks([])
 
 			ax[0,1].scatter(theta2 , s_[:,0], s = 1)
-			ax[0,1].plot(prior[0], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
+			ax[0,1].plot(prior[1], [summary_[0], summary_[0]], color = 'black', linestyle = 'dashed')
 			ax[0,1].set_ylabel('Network output', labelpad = 0)
 			ax[0,1].set_xlim(prior[1])
 			ax[0,1].set_ylim([np.min(s_[:,0]), np.max(s_[:,0])])
-			ax[1,1].hist(theta2, np.linspace(*prior[1], 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
+			ax[1,1].hist(theta2, bins = np.linspace(*prior[1], 100), histtype = u'step', density = True, linewidth = 1.5, color = '#9467bd');
 			ax[1,1].set_xlabel('$\\theta_2$ (variance)')
 			ax[1,1].set_ylabel('$\\mathcal{P}(\\theta|{\\bf d})$')
 			ax[1,1].set_yticks([])
 
 			fig.suptitle("Only showing 1st network output summary out of %i \n Full network output on real data: %s"%(s_.shape[1],str(summary_)))
 
-			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}.png')
+			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}_1D.png')
 			if show: plt.show()
 			plt.close()
-		plot()
 
-		return theta_
+		# plot output samples and histogram of the accepted samples
+		def plot_samples_twoD():
+			hist_kwargs = {} # add kwargs to give to matplotlib hist funct
+			fig, ax = plt.subplots(2, 2, figsize = (10, 10))
+			fig = corner.corner(theta_, fig=fig, truths = theta_fid
+				, labels=['$\\theta_1$ (mean)','$\\theta_2$ (variance)']
+				, plot_contours=True, range=prior, hist_kwargs=hist_kwargs)
+			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}_2D.png')
+			fig.suptitle("Approximate posterior after PMC ABC, num_keep = %i"%num_keep)
+			if show: plt.show()
+			plt.close()
 
+		# Plot epsilon vs iterations
+		def plot_epsilon():
+			fig, ax = plt.subplots()
+			ax.plot(all_epsilon,color='k',label='$\epsilon$ values')
+			plt.xlabel('Iteration')
+			plt.ylabel('$\epsilon$')
+			plt.legend()
+			plt.savefig(f'{self.figuredir}PMC_ABC_{self.modelversion}_epsilon.png')
+			if show: plt.show()
+			plt.close()
+
+		if oneD == 'both':
+			plot_samples()
+			plot_samples_twoD()
+		elif type(oneD) == bool:
+			if oneD:
+				plot_samples()
+			else:
+				plot_samples_twoD()
+		else: 
+			raise ValueError('Allowed values for oneD are "both", True or False')
+
+		plot_epsilon()
+
+		return theta_, all_epsilon
 
 def generate_data(θ, train = None):
 	'''Train is whether the upper and lower derivatives are calculated '''
@@ -594,16 +651,16 @@ def generate_data(θ, train = None):
 input_shape = [10]
 theta_fid = np.array([0.,1.]) # mean and variance
 delta_theta = np.array([0.1,0.1]) # perturbation values
-n_s = 1000 # number of simulations
+n_s = 10000 # number of simulations
 n_train = 1 # splits, for if it doesnt fit into memory
 # use less simulations for numerical derivative
-derivative_fraction = 0.20
+derivative_fraction = 0.05
 eta = 1e-5
-num_epochs = 20000
+num_epochs = int(1e4)
 keep_rate = 0.6
 verbose = 0
 hidden_layers = [256,256,256]
-initial_version = 1008
+initial_version = 1013
 # Version < 1006 erroneously uses np.sqrt(cov) instead of cov in IMNN code
 
 version = initial_version
@@ -635,11 +692,10 @@ nholder1.train_network(n)
 nholder1.plot_variables(n,show=False)
 # # Perform ABC
 real_data = generate_data(np.array([theta_fid]), train = None)
-prior = [[0, 5], [0,6]] # [ [prior1], [prior2], etc.. ]
+prior = [[-3, 3], [0,6]] # [ [prior1], [prior2], etc.. ]
 draws = 1000000
-nholder1.ABC(n, real_data, prior, draws, show=True, epsilon=2.8)
-
+nholder1.ABC(n, real_data, prior, draws, show=True, epsilon=None,oneD=False)
 
 num_keep = int(1e3)
 inital_draws = int(1e4)
-nholder1.PMC_ABC(n, real_data, prior, inital_draws, num_keep, criterion = 0.1, show=True)
+nholder1.PMC_ABC(n, real_data, prior, inital_draws, num_keep, criterion = 0.1, show=True,oneD=False)
