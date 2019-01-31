@@ -11,6 +11,7 @@ zmin = 0.
 zmax = 2.
 z = np.linspace(zmin,zmax,nz)
 nbins = 1
+ells = np.logspace(np.log10(100),np.log10(6000),10)
 
 def euclid_ccl(Omega_c, sigma8):
     """
@@ -24,8 +25,6 @@ def euclid_ccl(Omega_c, sigma8):
 
     cosmo_fid = ccl.Cosmology(Omega_c=Omega_c, Omega_b=0.045, h=0.71, sigma8=sigma8, n_s=0.963)
     
-    ell = np.logspace(np.log10(100),np.log10(6000),10)
-
     pz = ccl.PhotoZGaussian(sigma_z0=0.05)
     dNdz_true = ccl.dNdzSmail(alpha = 1.3, beta = 1.5, z0=0.65)
     
@@ -47,25 +46,32 @@ def euclid_ccl(Omega_c, sigma8):
     for i in range(nbins):
         for j in range(0,i+1):
             bin_indices.append((i,j))
-            Cls.append(ccl.angular_cl(cosmo_fid, shears[i], shears[j], ell))
+            Cls.append(ccl.angular_cl(cosmo_fid, shears[i], shears[j], ells))
      
-    return ell, np.array(Cls), dNdzs, bin_indices
+    return np.array(Cls), dNdzs, bin_indices
 
 def euclid_nzs(num_dens):
-    '''
-    euclid num density = 30 arcmin^-2 = 108,000 deg^-2
+    """
+    Calculate the (AVERAGE?!) number density of sub-sample galaxies per redshift bin
+
+    num_dens = 354,543,086 galaxies per steradian
+    
+    Euclid num density = 30 arcmin^-2 = 108,000 deg^-2     (arcmin^2 to deg^2 = 60^2)
     In steradians: A steradian is (180/π)^2 square degrees, or 3282.8 deg^2
     So Euclid number density 
     = 108,000 * 3282.8 = 354,543,086 galaxies per steradian
+
+    Returns
+        nzs --- list --- (AVERAGE?!) number density of galaxies in redshift bin
     
-    '''
-    nz = 1000
+    """
+
     # zmin , zmax = 0., 3.
     # z = np.linspace(zmin, zmax, nz)
     pz = ccl.PhotoZGaussian(sigma_z0=0.05)
     dNdz_true = ccl.dNdzSmail(alpha = 1.3, beta = 1.5, z0=0.65)
     dNdz_obs = ccl.dNdz_tomog(z=z, zmin=zmin, zmax=zmax, pz_func=pz, dNdz_func = dNdz_true)
-    # scale to the given number density
+    # scale to the given number density of 30 per arcmin squared 
     dNdz_obs = dNdz_obs/dNdz_obs.sum() * num_dens
     nzs = []
     for i in range(nbins):
@@ -77,15 +83,20 @@ def euclid_nzs(num_dens):
     return nzs
 
 def total_variance_Cls(i, j, m, n, nzs, ell_index, fsky, sn):
-    '''
+    """
     Calculate the total Gaussian covariance, which is diagonal in ell, follows
     https://arxiv.org/pdf/1809.09148.pdf
 
-    fsky = fraction of sky, 15000/41252.96 for Euclid
-    sn = shape noise = 0.3 ---> sn^2 = 0.3^2
-    Cls = angular auto,cross power spectra
-    nzs = array of number density values per tomographic bin
-    '''
+    i,j,m,n   -- indices denoting the tomographic bins
+    nzs     -- array of number density values per tomographic bins
+    ell_index -- index to find the ell that should be calculated
+    fsky      -- fraction of sky, 15000/41252.96 for Euclid
+    sn        -- shape noise = 0.3 ---> sn^2 = 0.3^2
+
+    Global variables
+    Cls     -- angular auto,cross power spectra (ncombinations,len(ells))
+    """
+
     delta_l = 1
     Modes_per_bin = fsky*(2*ells[ell_index]+1)*delta_l
 
@@ -98,9 +109,6 @@ def total_variance_Cls(i, j, m, n, nzs, ell_index, fsky, sn):
 
     nn_var_ij = (Nb_kroneker(i,m,sn)*Nb_kroneker(j,n,sn) + Nb_kroneker(i,n,sn)*Nb_kroneker(j,m,sn))/Modes_per_bin
     
-    # nn_var_ij = 0
-    # sn_var_ij = 0
-
     return ss_var_ij + sn_var_ij + nn_var_ij
 
 def Modes_per_bin(b, ell_bin_edges, fsky):
@@ -111,6 +119,7 @@ def Modes_per_bin(b, ell_bin_edges, fsky):
     ell_bin_edges -- array, edges of the l bins
     fsky -- float, fraction of the sky observed
     """
+    raise ValueError("Not used")
 
     # when binning, N_mode,b = fsky * (l_max_b^2 - l_min_b^2)
     lb_min = ell_bin_edges[b]
@@ -132,6 +141,9 @@ def Nb_kroneker(i,j, sn):
         return 0
 
 def covariance_matrix():
+    """
+    Much too difficult, but correct way to calculate the (10,10) covariance matrix
+    """
 
     # in this case, covariance is (10,10)
     covariance = np.zeros((Cls.size,Cls.size))
@@ -166,8 +178,14 @@ def covariance_matrix():
     return covariance
 
 def indexed_CL(Cls):
-    # for indexing the C_l's, Cl[i,j,ell_index]
-    # i and j are tomographic indices ell_index is index of ell number
+    """
+    For indexing the C_l's, Cl[i,j,ell_index]
+    i and j are tomographic indices ell_index is index of ell number
+
+    Returns 
+        CL -- 3D array containing power spectra (i,j,ell_index)
+
+    """
     CL = np.zeros((nbins,nbins, Cls.shape[1]))
     counter = 0
     for i in range(nbins):
@@ -351,10 +369,103 @@ def plot_all_variances_1bin():
     # plt.show()
     plt.close()
 
+def calculate_Cls_obs(Cls):
+    """
+    Calculate the power spectrum contaminated by shape noise
+    https://arxiv.org/pdf/0810.4170.pdf (Eq. 7)
+
+    """
+    Cls_obs = np.copy(Cls)
+    counter = 0
+    for i in range(nbins):
+        for j in range(0,i+1):
+            if i == j:
+                shotnoise = sn**2/nzs[i]
+            else: # cross spectra are not contaminated by shot noise
+                shotnoise = 0
+
+            Cls_obs[counter] += shotnoise
+            counter +=1
+
+    return Cls_obs
+
+def plot_all_variances_takada_jain():
+    """
+    Plot the variances calculated the way Takada & Jain (2009) calculated them
+    https://arxiv.org/pdf/0810.4170.pdf
+
+    Versus the way they are calculated with individual terms
+
+    In the 1 bin case, covariance is (10,10) but diagonal, so actually only [10]
+
+    """
+    delta_l = 1
+    # Sum of all 3 terms, according to https://arxiv.org/pdf/1809.09148.pdf
+    covariance_terms = covariance_matrix()
+
+    # Cls with added shape noise
+    Cls_obs = calculate_Cls_obs(Cls)
+
+    # for 1 tomographic bin Covariance is easily calculated with the following lines
+    Neffmode = (2*ells+1) * delta_l * fsky
+    covariance_diag = Cls_obs[0]*Cls_obs[0] + Cls_obs[0]*Cls_obs[0]
+    covariance_diag /= Neffmode
+    covariance_takada = np.diag(covariance_diag)
+
+    # ############# Plot the diagonals of the (diagonal) covariance matrices 
+    fig = plt.figure()#figsize=(12,8)
+    plt.plot(ells, np.diagonal(covariance_terms),label='Sum of 3 terms (HSC paper)'
+        )
+    plt.plot(ells, np.diagonal(covariance_takada),label='Takada & Jain (2009)'
+        ,linestyle='dashed')
+    plt.xlabel('$\ell$')
+    plt.ylabel('Value')
+    plt.yscale('log')
+    plt.title('Diagonal elements of covariance matrix Cov($C^{00},C^{00}$)')
+    plt.legend()
+    plt.savefig('./TestFigures/Cov_1bin_comparison.png')
+    plt.show()
+    plt.close()
+
+def perturb_Cls():
+
+    delta_l = 1
+
+    # Cls with added shape noise
+    Cls_obs = calculate_Cls_obs(Cls)
+
+    # for 1 tomographic bin Covariance is easily calculated with the following lines
+    Neffmode = (2*ells+1) * delta_l * fsky
+    covariance_diag = Cls_obs[0]*Cls_obs[0] + Cls_obs[0]*Cls_obs[0]
+    covariance_diag /= Neffmode
+    covariance = np.diag(covariance_diag)
+
+    fig, ax = plt.subplots()
+    # for the legend
+    ax.plot(ells[0], ells[0]*(ells[0]+1)*Cls[0][0]
+        ,color='white',label=f'0,0')
+    ax.legend(frameon=False,loc='upper left')
+
+    # Plot the original spectrum
+    ax.loglog(ells, ells*(ells+1)*Cls[0],label='Original spectrum')
+
+    # Calculate the standard deviation
+    onesigma = np.sqrt(np.diag(covariance))
+    # Perturb Cls with this
+    Cls_perturbed = Cls + np.random.normal(0, onesigma)
+    ax.loglog(ells, ells*(ells+1)*Cls_perturbed[0], label='Perturbed')
+    ax.legend(frameon=False,loc='upper left')
+
+    ax.set_ylabel('$\ell  (\ell + 1) C_\ell$')
+    ax.set_xlabel('$\ell$')
+
+    plt.savefig('./TestFigures/1bin_original_vs_perturbed')
+    plt.show()
+    plt.close()
 
 
 if __name__ == '__main__':
-    ells, Cls, dNdzs, bin_indices = euclid_ccl(0.27, 0.82)
+    Cls, dNdzs, bin_indices = euclid_ccl(0.27, 0.82)
 
     # for indexing the C_l's, Cl[i,j,ell_index]
     CL = indexed_CL(Cls)
@@ -368,5 +479,7 @@ if __name__ == '__main__':
     nzs = euclid_nzs(num_dens) 
 
     # plot_sample_variance_only_1bin()
-    plot_all_variances_1bin()
+    # plot_all_variances_1bin()
 
+    plot_all_variances_takada_jain()
+    perturb_Cls()
