@@ -481,5 +481,5 @@ if __name__ == '__main__':
     # plot_sample_variance_only_1bin()
     # plot_all_variances_1bin()
 
-    plot_all_variances_takada_jain()
-    perturb_Cls()
+    # plot_all_variances_takada_jain()
+    # perturb_Cls()
