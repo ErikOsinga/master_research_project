@@ -124,11 +124,11 @@ def Nb_kroneker(i,j, sn):
     """
     Shot noise spectrum 
         zero when i != j
-        sn=0.26/number of galaxies when i == j
+        sn**2/number of galaxies when i == j
     """
     
     if i == j :
-        x = sn/nzs[i]
+        x = sn**2/nzs[i]
     else:
         x = 0
     return x

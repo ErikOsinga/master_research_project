@@ -119,10 +119,14 @@ def Modes_per_bin(b, ell_bin_edges, fsky):
     return fsky * (lb_max**2 - lb_min**2)
 
 def Nb_kroneker(i,j, sn):
-    # shot noise spectrum, zero when i != j
+    """
+    Shot noise spectrum 
+        zero when i != j
+        sn**2/number of galaxies when i == j
+    """
     
     if i == j :
-        x = sn/nzs[i]
+        x = sn**2/nzs[i]
         return x
     else:
         return 0
@@ -232,7 +236,9 @@ def plot_sample_variance_only_1bin():
     ax.set_title('logCovariance matrix from auto ell (diagonal)')
     im = ax.imshow(np.log10(covariance))
     plt.colorbar(im, ax=ax)
-    plt.show()
+    # plt.show()
+    # plt.savefig('./TestFigures/SScovariance_matrix_1bin.png')
+    plt.close()
 
 
     # ############## Plot the errorbars as the diagonal elements    
@@ -250,7 +256,8 @@ def plot_sample_variance_only_1bin():
     ax.set_ylabel('$\ell  (\ell + 1) C_\ell$')
     ax.set_xlabel('$\ell$')
     ax.set_title('Sample covariance only')
-    plt.show()
+    # plt.show()
+    plt.close()
 
 def plot_all_variances_1bin():
     # All 3 terms
@@ -293,7 +300,7 @@ def plot_all_variances_1bin():
     plt.show()
     '''
 
-    # ############# Plot the diagonals of the covariance matrices
+    # ############# Plot the diagonals of the (diagonal) covariance matrices 
     fig = plt.figure()#figsize=(12,8)
     plt.plot(ells, np.diagonal(covariance_SS),label='SS')
     plt.plot(ells, np.diagonal(covariance_SN),label='SN')
@@ -303,7 +310,9 @@ def plot_all_variances_1bin():
     plt.yscale('log')
     plt.title('Diagonal elements of covariance matrix Cov($C^{00},C^{00}$)')
     plt.legend()
-    plt.show()
+    plt.savefig('./TestFigures/Cov_matrix_1bin.png')
+    # plt.show()
+    plt.close()
 
 
     # ############## Plot the errorbars as the diagonal elements    
@@ -338,8 +347,10 @@ def plot_all_variances_1bin():
     ax.set_ylabel('$\ell  (\ell + 1) C_\ell$')
     ax.set_xlabel('$\ell$')
     ax.set_title('SS term only')
-    
-    plt.show()
+    plt.savefig('./TestFigures/C_ell_1bin_all_terms.png')
+    # plt.show()
+    plt.close()
+
 
 
 if __name__ == '__main__':
