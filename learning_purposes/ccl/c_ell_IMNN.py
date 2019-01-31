@@ -15,6 +15,8 @@ import utils_mrp
 # For making corner plots of the posterior
 import corner # Reference: https://github.com/dfm/corner.py/
 
+sys.path.insert(0,'/net/eemmeer/data1/osinga/') # for some reason pyccl needs this
+sys.path.insert(0,'/net/eemmeer/data1/osinga/pyccl') # for some reason pyccl needs this
 import pyccl as ccl # for generating weak lensing cross power spectra
 
 """
@@ -159,7 +161,8 @@ class nholder(object):
         n_p = int(self.n_s * self.derivative_fraction)
 
         # set a seed to surpress the sample variance
-        seed = np.random.randint(1e6)
+        seed = np.random.randint(1e6) # I think we should not do this, because
+                                    # sample variance is all we use
         np.random.seed(seed)
         # Perturb lower 
         t_m = self.generate_data(np.array([self.theta_fid for i in 
@@ -181,7 +184,7 @@ class nholder(object):
 
         data = {"x_central": t, "x_m": t_m, "x_p":t_p}
 
-        # Repeat the same story to generate training data
+        # Repeat the same story to generate test data
         seed = np.random.randint(1e6)
         np.random.seed(seed)
         # Perturb lower 
@@ -218,7 +221,7 @@ class nholder(object):
 
         """
 
-        fig, ax = plt.subplots(figsize = (10, 6))
+        fig, ax = plt.subplots(2, 1, figsize = (10, 6))
 
         # plot one random row from the simulated train data 
         if self.flatten:
@@ -227,25 +230,26 @@ class nholder(object):
             x, y = temp.T[:,0]
         else:
             print ('Plotting data...')
-            temp = self.data['x_central'][np.random.randint(self.n_train * self.n_s)].reshape(55,4900)
+            temp = self.data['x_central'][np.random.randint(self.n_train * self.n_s)].reshape(55,len(ells))
             Cl = temp[0] # plot the (0,0) autocorrelation bin
 
-        ax.loglog(ell, ell*(ell+1)*Cl)
-        ax.set_title('Training data')
-        ax.set_xlabel('$\ell$')
-        ax.set_ylabel('$\ell(\ell+1) C_\ell$')
+        ax[0].loglog(ells, ells*(ells+1)*Cl)
+        ax[0].set_title('Training data, bin (0,0)')
+        ax[0].set_xlabel('$\ell$')
+        ax[0].set_ylabel('$\ell(\ell+1) C_\ell$')
         
         # plot one random row from the simulated test data 
         if self.flatten:
             temp = self.data['x_central_test'][np.random.randint(self.n_s)].reshape(input_shape)
             x, y = temp.T[:,0]
         else:
-            x, y = self.data['x_central_test'][np.random.randint(self.n_s)].T[:,0]
-        ax[1].plot(x,y,'x',label='data')
-        ax[1].axis('equal')
-        ax[1].set_title('Test data')
-        ax[1].plot(*theta_fid,'x',color='r',label='Fiducial mean')
-        ax[1].set_xlim(theta_fid[1]-3,theta_fid[1]+3)
+            temp = self.data['x_central_test'][np.random.randint(self.n_train * self.n_s)].reshape(55,len(ells))
+            Cl = temp[0] # plot the (0,0) autocorrelation bin
+
+        ax[0].loglog(ells, ells*(ells+1)*Cl)
+        ax[0].set_title('Test data, bin (0,0)')
+        ax[0].set_xlabel('$\ell$')
+        ax[0].set_ylabel('$\ell(\ell+1) C_\ell$')
 
         plt.legend()
 
@@ -255,7 +259,7 @@ class nholder(object):
 
     def plot_derivatives(self, show=False):
         """ 
-        Plot the upper and lower perturbed data as data amplitude
+        Plot the upper and lower perturbed data 
         Good to check if the sample variance is being 
         surpressed. This needs to be done or the network learns very slowly
 
@@ -271,83 +275,107 @@ class nholder(object):
         
         if self.flatten:
             print ('Plotting derivatives... reshaping the flattened data to %s'%str(input_shape))
+            # TODO
             temp = self.data['x_p'][training_index].reshape(len(theta_fid),*input_shape)
             x, y = temp.T[:,0]
         else:
-            x, y = self.data['x_p'][training_index].T[:,0]
+            print ('Plotting derivatives... reshaping the flattened data to power spectra')
+            temp = self.data['x_p'][training_index].reshape(55,len(ells))
+            Cl = temp[0] # plot the (0,0) autocorrelation bin
         
-        # x, y have shape (10,2) since they are the x and y of the  
+        # Cl has shape (20,2) since it is the data vector for the 
         # upper training image for both params
         labels =['$θ_1$','$θ_2$']
 
         # we loop over them in this plot only, to assign labels
         for i in range(x.shape[1]):
-            ax[0, 0].plot(x[:,i],y[:,i],'x',label=labels[i])
-        ax[0, 0].set_title('Upper training image')
-        ax[0, 0].set_xlim(-3,3)
-        ax[0, 0].set_ylim(-3,3)
+            ax[0, 0].loglog(ells, ells*(ells+1)*Cl,label=labels[i])
+        ax[0, 0].set_title('Upper training image, Cl 0,0')
+        ax[0, 0].set_xlabel('$\ell$')
+        ax[0, 0].set_ylabel('$\ell(\ell+1) C_\ell$')
         ax[0, 0].legend(frameon=False)
 
         if self.flatten:
+            # TODO
             temp = self.data['x_m'][training_index].reshape(len(theta_fid),*input_shape)
             x, y = temp.T[:,0]
         else:
-            x, y = self.data['x_m'][training_index].T[:,0]
+            temp = self.data['x_m'][training_index].reshape(55,len(ells))
+            Cl = temp[0] # plot the (0,0) autocorrelation bin
 
-        ax[1, 0].plot(x, y, 'x')
-        ax[1, 0].set_title('Lower training image')
-        ax[1, 0].set_xlim(-3,3)
-        ax[1, 0].set_ylim(-3,3)
+        ax[1, 0].loglog(ells, ells*(ells+1)*Cl)
+        ax[1, 0].set_title('Lower training image, Cl 0,0')
+        ax[1, 0].set_xlabel('$\ell$')
+        ax[1, 0].set_ylabel('$\ell(\ell+1) C_\ell$')
 
         if self.flatten:
+            # TODO
             temp = self.data["x_m"][training_index].reshape(len(theta_fid),*input_shape)
             xm, ym = temp.T[:,0]
 
             temp = self.data["x_p"][training_index].reshape(len(theta_fid),*input_shape)
             xp, yp = temp.T[:,0]
         else:
-            xm, ym = self.data["x_m"][training_index].T[:,0]
-            xp, yp = self.data["x_p"][training_index].T[:,0]
+            temp = self.data['x_m'][training_index].reshape(55,len(ells))
+            Cl_lower = temp[0]
+            temp = self.data['x_p'][training_index].reshape(55,len(ells))
+            Cl_upper = temp[0]
 
-        ax[2, 0].plot(xp-xm,yp-ym,'x')
+        ax[2, 0].plot(ells,ells*(ells+1)*(Cl_upper-Cl_lower),'x')
         ax[2, 0].set_title('Difference between upper and lower training images');
+        ax[2, 0].set_xlabel('$\ell$')
+        ax[2, 0].set_ylabel('$\ell(\ell+1) \delta C_\ell$')
         ax[2, 0].axhline(xmin = 0., xmax = 1., y = 0.
             , linestyle = 'dashed', color = 'black')
 
         test_index = np.random.randint(self.n_p)
 
         if self.flatten:
+            # TODO
             temp = self.data['x_p_test'][test_index].reshape(len(theta_fid),*input_shape)
             x, y = temp.T[:,0]
         else:
-            x, y = self.data['x_p_test'][test_index].T[:,0]
+            temp = self.data['x_p_test'][test_index].reshape(55,len(ells))
+            Cl = temp[0] # plot the (0,0) autocorrelation bin
         
-        ax[0, 1].plot(x, y, 'x')
-        ax[0, 1].set_title('Upper test image')
+        ax[0, 1].loglog(ells, ells*(ells+1)*Cl)
+        ax[0, 1].set_title('Upper test image Cl 0,0')
+        ax[0, 1].set_xlabel('$\ell$')
+        ax[0, 1].set_ylabel('$\ell(\ell+1) C_\ell$')
+
 
         if self.flatten:
-            temp = self.data['x_m_test'][training_index].reshape(len(theta_fid),*input_shape)
+            # TODO
+            temp = self.data['x_m_test'][test_index].reshape(len(theta_fid),*input_shape)
             x, y = temp.T[:,0]
         else:
-            x, y = self.data['x_m_test'][training_index].T[:,0]
+            temp = self.data['x_m_test'][test_index].reshape(55,len(ells))
+            Cl = temp[0] # plot the (0,0) autocorrelation bin
 
-        ax[1, 1].plot(x, y, 'x')
-        ax[1, 1].set_title('Lower test image')
+        ax[0, 1].loglog(ells, ells*(ells+1)*Cl)
+        ax[0, 1].set_title('Lower test image Cl 0,0')
+        ax[0, 1].set_xlabel('$\ell$')
+        ax[0, 1].set_ylabel('$\ell(\ell+1) C_\ell$')
 
         if self.flatten:
+            # TODO
             temp = self.data["x_m_test"][test_index].reshape(len(theta_fid),*input_shape)
             xm, ym = temp.T[:,0]
 
             temp = self.data["x_p_test"][test_index].reshape(len(theta_fid),*input_shape)
             xp, yp = temp.T[:,0]
         else:
-            xm, ym = self.data["x_m_test"][test_index].T[:,0]
-            xp, yp = self.data["x_p_test"][test_index].T[:,0]
+            temp = self.data['x_m_test'][test_index].reshape(55,len(ells))
+            Cl_lower = temp[0]
+            temp = self.data['x_p_test'][test_index].reshape(55,len(ells))
+            Cl_upper = temp[0]
         
-        ax[2, 1].plot(xp-xm,yp-ym,'x')
+        ax[2, 1].plot(ells,ells*(ells+1)*(Cl_upper-Cl_lower),'x')
+        ax[2, 1].set_title('Difference between upper and lower test images');
+        ax[2, 1].set_xlabel('$\ell$')
+        ax[2, 1].set_ylabel('$\ell(\ell+1) \delta C_\ell$')
         ax[2, 1].axhline(xmin = 0., xmax = 1., y = 0.
             , linestyle = 'dashed', color = 'black')
-        ax[2, 1].set_title('Difference between upper and lower test images')
 
         plt.savefig(f'{self.figuredir}derivatives_visualization_{self.modelversion}.png')
         if show: plt.show()
@@ -733,42 +761,211 @@ def euclid_ccl(Omega_c, sigma8):
     Cls = []
     for i in range(10):
         for j in range(0,i+1):
-            Cls.append(ccl.angular_cl(cosmo_fid, shears[i], shears[j], ell))
+            Cls.append(ccl.angular_cl(cosmo_fid, shears[i], shears[j], ells))
      
     return np.array(Cls), dNdzs
 
-def generate_data(θ, train=None):
+
+def SS_variance_Cls(i, j, m, n, ell_index, fsky, CL):
+    '''
+    Calculate sample variance
+
+    fsky = fraction of sky, 15000/41252.96 for Euclid
+    sn = shape noise = 0.3 ---> sn^2 = 0.3^2
+    Cls = angular auto,cross power spectra
+    nzs = array of number density values per tomographic bin
+    '''
+
+    # TODO, change this so we dont use the CL which is a holder matrix
+    # since the matrix is symmetric, we can also speed this process up by a factor 2
+    ss_var_ij = (CL[i,m,ell_index]*CL[j,n,ell_index] + CL[i,n,ell_index]*CL[j,m,ell_index])/Nmode_per_l(ells[ell_index],fsky)   
+    
+    return ss_var_ij  # + sn_var_ij + nn_var_ij
+    
+def Nmode_per_l(ell,fsky):
+    
+    return 1/(2*ell+1)/fsky
+
+def euclid_nzs(num_dens):
+    '''
+    Calculate integrated number density per bin, scale to given num_dens
+
+    Euclid num density = 30 arcmin^-2
+    '''
+    nz = 1000
+    zmin , zmax = 0., 3.
+    z = np.linspace(zmin, zmax,nz)
+    pz = ccl.PhotoZGaussian(sigma_z0=0.05)
+    dNdz_true = ccl.dNdzSmail(alpha = 1.3, beta = 1.5, z0=0.65)
+    dNdz_obs = ccl.dNdz_tomog(z=z, zmin=zmin, zmax=zmax, pz_func=pz, dNdz_func = dNdz_true)
+    # scale to the given number density
+    dNdz_obs = dNdz_obs*num_dens/dNdz_obs.sum()
+    nzs = []
+    for i in range(10):
+        zmin_i, zmax_i = i*.2 , (i+1)*.2
+        mask = (z>zmin_i)&(z<zmax_i)
+        nzs.append(dNdz_obs[mask].sum()) #*num_dens)
+     
+    return nzs
+
+def cov_cls(ell_index,CL):
+    """
+    Calculate the covariance matrix for a given ell number
+    by looping over all (m,n) (i,j) bin combinations
+
+    CL = holder matrix for indicing
+    """
+    counter1 = 0
+    counter2 = 0
+    cov_cl = np.zeros((55,55))
+    for m in range(10):
+            for n in range(0,m+1):
+                counter2 = 0
+                for i in range(10):
+                        for j in range(0,i+1):
+                            cov_cl[counter1,counter2] = SS_variance_Cls(i, j, m, n, ell_index, fsky, CL)
+                            counter2 +=1
+                counter1 += 1
+                
+    return cov_cl
+
+def calculate_variance(Cls):
+    """
+    Calculate the covariance matrix for all l's of the Cl's 
+    """
+
+    # sn = 0.3  # not yet
+
+    # Build a holder matrix for indicing the different bins
+    # TODO \\ make a class
+    CL = np.zeros((10,10, ells.size))
+    counter = 0
+    for i in range(10):
+            for j in range(0,i+1):
+                CL[i,j,:] = Cls[counter]
+                counter += 1
+    # make sure we also get the inverse bins
+    for i in range(10):
+        for j in range(10):
+            CL[i,j,:] = CL[j,i,:]
+
+    cov_cl_holder = []
+    # loop over all l
+    for ell_index in range(len(ells)):
+        cov_cl = np.array(cov_cls(ell_index,CL))
+        cov_cl_holder.append(cov_cl)
+        
+    cov_cl_holder = np.array(cov_cl_holder) # shape (len(ells),55,55)
+
+    return cov_cl_holder
+        
+def add_variance(Cls_original, cov_cl_holder):
+    """
+    Perturb the data with a multivariate Gaussian, with variance given as 
+    the matrix cov_cl_holder which has shape (l,55,55)
+
+    Only have to repeat this function to add noise to the determinitistic Cl_original
+    """
+    
+    Cls = np.copy(Cls_original)
+    length = len(cov_cl_holder[0])
+    for ell_index in range(len(ells)):
+        # perturb CL with noise
+        Cls[:,ell_index] += np.random.multivariate_normal(np.zeros(length)
+                                                    ,cov_cl_holder[ell_index]) 
+
+    return Cls
+
+def generate_data(θ, train=None, flatten=False):
     """
     Holder function for the generation of the Cls
     
     θ = vector of lists of [Omega_c, Sigma8]'s to produce a Cl for
+    train = either None or an array of [delta_theta1,delta_theta2] for generating
+            the upper and lower derivatives
 
     Returns the weak lensing data vector flattened to use as input for the IMNN
             shape (num_simulations=len(θ), length of Cl vector)
     """
+    θ = np.asarray(θ)
 
-    # Think about how to generate multiple at once
-    # Omega_c, sigma8 = θ
+    def helper_func(θ):
+        """
+        Generates noisy simulations at θ = vector of lists of [Omega_c, Sigma8]'s
+        Called once if train = None, called twice if not
+        """
+        if (θ[:,0] == θ[0,0]).all() and (θ[:,1] == θ[0,1]).all():
+            print ("List of parameters contains all the same parameters")
+            Omega_c, sigma8 = θ[0,0],θ[0,1]
+            
+            # generate cross power spectra Cl
+            Cls, dNdzs = euclid_ccl(Omega_c, sigma8)
 
-    all_Cls = []
-    for Omega_c, sigma8 in θ:
-        Cls, dNdzs = euclid_ccl(Omega_c, sigma8)
-        all_Cls.append(Cls.flatten()) # flatten the Cl data
+            # to keep a noise-free version of Cl as well
+            Cls_original = np.copy(Cls)
 
-    return all_Cls
+            # Calculate the SS covariance for every ell
+            SS_covariance_holder = calculate_variance(Cls)
+
+            # For every item in the list of coordinates, perturb the original Cl with
+            # a multivariate Gaussian, save it as a list of (flattened) simulations 
+            all_Cls = []
+            for i in range(len(θ)): # can be done in parallel for all i 
+
+                Cls = add_variance(Cls_original, SS_covariance_holder)
+                all_Cls.append(Cls.flatten())
+
+        
+        # TODO // Think about how to generate multiple at once
+        # Omega_c, sigma8 = θ,  not possible if they are different params
+        else: # generate the simulations one by one...
+            print ("List of parameters does not contain all the same parameters. Slow.")
+
+            all_Cls = []
+            for Omega_c, sigma8 in θ: # can be done in parallel for all i 
+                Cls, dNdzs = euclid_ccl(Omega_c, sigma8)
+                all_Cls.append(Cls.flatten()) # flatten the Cl data
+
+        return np.asarray(all_Cls) # shape (num_simulations, 55*len(ells))
+
+    if train is not None: # generate derivatives, with perturbed thetas
+        
+        perturb_param1 = np.array([train[0],0])
+        θ_first_param = θ + perturb_param1
+
+        perturb_param2 = np.array([0,train[1]])
+        θ_second_param = θ + perturb_param2
+
+        # first the upper/lower of the first parameter
+        all_Cls_first_param = helper_func(θ_first_param)
+        # then the upper/lower of the second parameter
+        all_Cls_second_param = helper_func(θ_second_param)
+
+        # Return it as an array of shape (num_sim,num_param,length_vector)
+        all_Cls_first_param = all_Cls_first_param.reshape(
+                                        len(θ),1,all_Cls_first_param.shape[1])
+        all_Cls_second_param = all_Cls_second_param.reshape(
+                                        len(θ),1,all_Cls_second_param.shape[1])
+        all_Cls = np.concatenate([all_Cls_first_param,all_Cls_second_param],axis=1) 
+
+        return all_Cls # shape (num_simulations, num_params, 55*len(ells)
+
+    else:
+        return helper_func(θ)
 
 
+# num_dens = 30 * 1/0.002777 # from arcmin^-2 to deg^-2
+# Calculate integrated number density
+# nzs = euclid_nzs(num_dens)
 
-t = self.generate_data(np.array([self.theta_fid for i in 
-                range(self.n_train * self.n_s)])
-                ,train = None, flatten = self.flatten)
-
-Cls, dNdzs = euclid_ccl(0.27, 0.82)
-
-data = generate_data(0.27,0.82)
-
+# #######################################
+# ALL PARAMETERS FOR CCL
+#_______________________________________________________
 
 
+fsky = 15000/41252.96 # fraction of the sky observed by Euclid
+# sampled ells
+ells = np.logspace(np.log10(100),np.log10(6000),20)
 
 
 
@@ -776,11 +973,11 @@ data = generate_data(0.27,0.82)
 # ALL PARAMETERS FOR IMNN
 #_______________________________________________________
 # The input shape is a 1D vector of length 55*4900
-input_shape = [55*4900] 
+input_shape = [55*len(ells)] 
 
 theta_fid = np.array([0.27, 0.82]) # Omega_m and Sigma_8 
 
-delta_theta = np.array([0.05,0.05]) # perturbation values
+delta_theta = np.array([0.02,0.02]) # perturbation values
 n_s = 1000 # number of simulations
 n_train = 1 # splits, for if it doesnt fit into memory
 # use less simulations for numerical derivative
@@ -822,13 +1019,15 @@ nholder1 = nholder(input_shape, generate_data, theta_fid, delta_theta, n_s,
 # # IMNN network
 n = nholder1.create_network()
 # # Plot data
-nholder1.plot_data(show=False)
+nholder1.plot_data(show=True)
 # # plot derivatives
-nholder1.plot_derivatives(show=False)
+nholder1.plot_derivatives(show=True)
 # # Train network
 nholder1.train_network(n)
 # # Plot the output
 nholder1.plot_variables(n,show=True)
+
+np.holdup()
 
 # Generate actual data with mean = [1., 2.]
 real_data = generate_data(np.array([theta_fid]), train = None, flatten=flatten)
@@ -854,47 +1053,3 @@ theta_, all_epsilon = nholder1.PMC_ABC(n, real_data, prior, inital_draws
 nholder1.train_network(n,to_continue=True)
 nholder1.plot_variables(n,show=True)
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# plot the 55 spectra
-fig = plt.figure(figsize=(20,20))
-counter = 0
-for i in range(10):
-        for j in range(0,i+1):
-            ax = plt.subplot2grid((10,10), (i,j))
-            ax.loglog(ells, ells*(ells+1)*Cls[counter])
-            counter += 1
-
-plt.show()
-
-
-# plot the dNdzs distribution
-plt.figure(figsize=(10,10))
-for i in range(10):
-    plt.plot(z, dNdzs[i,:], lw = 3)
-
-plt.show()
