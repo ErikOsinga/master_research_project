@@ -217,12 +217,9 @@ def plot_dNdzs():
 
 def plot_sample_variance_only_1bin():
     """
-    set nn_var_ij = 0 and sn_var_ij=0 in the def total_variance_Cls or just
-    leave it commented.
-
+    For 1 bin sample variance is easy to calculate
     """
-    # This uses a lot of loops to do the same as the three lines below
-    # covariance_test = covariance_matrix()
+
     delta_l = 1
 
     covariance_diag = Cls[0]*Cls[0] + Cls[0] * Cls[0]
