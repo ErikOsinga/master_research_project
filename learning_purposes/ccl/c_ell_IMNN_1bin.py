@@ -94,6 +94,7 @@ class nholder(object):
         self.keep_rate = keep_rate
         self.verbose = verbose
         self.flatten = flatten
+        self.rescaled = False # set to true when rescale_data is called
 
         self.data, self.der_den = self.create_data()
         # Make parameters dictionary of params that are always the same or defined
@@ -264,7 +265,7 @@ class nholder(object):
 
         """
 
-        fig, ax = plt.subplots(2, 1, figsize = (10, 6))
+        fig, ax = plt.subplots(2, 1, figsize = (8, 6))
         plt.subplots_adjust(hspace=0.5)
 
         nrows = 10
@@ -281,11 +282,18 @@ class nholder(object):
                 temp = self.data['x_central'][np.random.randint(self.n_train * self.n_s)].reshape(ncombinations,len(ells))
                 Cl = temp[0] # plot the (0,0) autocorrelation bin
 
-            ax[0].loglog(ells, ells*(ells+1)*Cl)
+            if self.rescaled:
+                ax[0].plot(ells, Cl)
+            else:
+                ax[0].loglog(ells, ells*(ells+1)*Cl)
             ax[0].set_title(f'{nrows} examples from training data, Cl (0,0)')
             ax[0].set_xlabel(r'$\ell$')
-            ax[0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
-            
+            if self.rescaled:
+                ax[0].set_ylabel(r'$C_\ell$')
+            else:
+                ax[0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+                
+
             # plot nrows random examples from the simulated test data 
             if self.flatten:
                 temp = self.data['x_central_test'][np.random.randint(self.n_s)].reshape(input_shape)
@@ -294,10 +302,16 @@ class nholder(object):
                 temp = self.data['x_central_test'][np.random.randint(self.n_train * self.n_s)].reshape(ncombinations,len(ells))
                 Cl = temp[0] # plot the (0,0) autocorrelation bin
 
-            ax[1].loglog(ells, ells*(ells+1)*Cl)
-            ax[1].set_title(f'{nrows} example from test data, Cl (0,0)')
+            if self.rescaled:
+                ax[1].plot(ells, Cl)
+            else:
+                ax[1].loglog(ells, ells*(ells+1)*Cl)
+            ax[1].set_title(f'{nrows} examples from test data, Cl (0,0)')
             ax[1].set_xlabel(r'$\ell$')
-            ax[1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+            if self.rescaled:
+                ax[1].set_ylabel(r'$C_\ell$')
+            else:
+                ax[1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
 
         # plt.legend()
 
@@ -339,10 +353,17 @@ class nholder(object):
 
         # we loop over them in this plot to assign labels
         for i in range(Cl.shape[0]):
-            ax[0, 0].loglog(ells, ells*(ells+1)*Cl[i],label=labels[i])
+            if self.rescaled:
+                ax[0, 0].plot(ells, Cl[i],label=labels[i])
+            else:
+                ax[0, 0].loglog(ells, ells*(ells+1)*Cl[i],label=labels[i])
         ax[0, 0].set_title('One upper training example, Cl 0,0')
         ax[0, 0].set_xlabel(r'$\ell$')
-        ax[0, 0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+        if self.rescaled:
+            ax[0, 0].set_ylabel(r'$C_\ell$')
+        else:
+            ax[0, 0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+
         ax[0, 0].legend(frameon=False)
 
         if self.flatten:
@@ -355,10 +376,16 @@ class nholder(object):
             Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
 
         for i in range(Cl.shape[0]):
-            ax[1, 0].loglog(ells, ells*(ells+1)*Cl[i])
+            if self.rescaled:
+                ax[1, 0].plot(ells, Cl[i])
+            else:
+                ax[1, 0].loglog(ells, ells*(ells+1)*Cl[i])
         ax[1, 0].set_title('One lower training example, Cl 0,0')
         ax[1, 0].set_xlabel(r'$\ell$')
-        ax[1, 0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+        if self.rescaled:
+            ax[1, 0].set_ylabel(r'$C_\ell$')
+        else:
+            ax[1, 0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
 
         if self.flatten:
             # TODO
@@ -392,11 +419,16 @@ class nholder(object):
             Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
         
         for i in range(Cl.shape[0]):
-            ax[0, 1].loglog(ells, ells*(ells+1)*Cl[i])
+            if self.rescaled:
+                ax[0, 1].plot(ells, Cl[i])
+            else:
+                ax[0, 1].loglog(ells, ells*(ells+1)*Cl[i])
         ax[0, 1].set_title('One upper test example Cl 0,0')
         ax[0, 1].set_xlabel(r'$\ell$')
-        ax[0, 1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
-
+        if self.rescaled:
+            ax[0, 1].set_ylabel(r'$C_\ell$')
+        else:
+            ax[0, 1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
 
         if self.flatten:
             # TODO
@@ -407,10 +439,16 @@ class nholder(object):
             Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
 
         for i in range(Cl.shape[0]):
-            ax[1, 1].loglog(ells, ells*(ells+1)*Cl[i])
+            if self.rescaled:
+                ax[1, 1].plot(ells, Cl[i])
+            else:
+                ax[1, 1].loglog(ells, ells*(ells+1)*Cl[i])
         ax[1, 1].set_title('One lower test example Cl 0,0')
         ax[1, 1].set_xlabel(r'$\ell$')
-        ax[1, 1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+        if self.rescaled:
+            ax[1, 1].set_ylabel(r'$C_\ell$')
+        else:
+            ax[1, 1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
 
         if self.flatten:
             # TODO
@@ -456,6 +494,41 @@ class nholder(object):
         
         return n
 
+    def rescale_data(self):
+        """
+        Rescaling the input data. 
+
+
+        """
+
+        # Dividing every array of simulated data vectors by the mean of that array.
+        '''# Didnt work
+        for key in self.data.keys():
+            self.data[key] /= np.mean(self.data[key])
+        '''
+
+        self.rescaled = True
+
+        # Mean normalization
+        """ didnt work
+        for key in self.data.keys():
+            self.data[key] -= np.mean(self.data[key])
+            self.data[key] /= (np.max(self.data[key]) - np.min(self.data[key]))
+        """
+
+        # Median normalization
+        """ didnt work, still dividing by large number 
+        for key in self.data.keys():
+            self.data[key] -= np.median(self.data[key])
+            self.data[key] /= (np.max(self.data[key]) - np.min(self.data[key]))
+        """
+
+        # Divide by median
+        for key in self.data.keys():
+            self.data[key] -= np.median(self.data[key])
+            self.data[key] /= (np.median(self.data[key]))
+
+    
     def train_network(self, n, to_continue=False):
         """ 
         Train the created network with the given data and parameters
@@ -955,7 +1028,8 @@ def generate_data(θ, train=None, flatten=False):
             all_Cls = []
             for i in range(len(θ)): # can be done in parallel for all i 
 
-                Cls = add_variance(Cls_original, covariance)
+                # Cls = add_variance(Cls_original, covariance)
+                Cls = Cls_original
                 all_Cls.append(Cls.flatten())
 
         
@@ -963,6 +1037,7 @@ def generate_data(θ, train=None, flatten=False):
         # Omega_c, sigma8 = θ,  not possible if they are different params
         else: # generate the simulations one by one...
             print ("List of parameters does not contain all the same parameters. Slow.")
+            raise ValueError("TODO, add noise etc.")
 
             all_Cls = []
             for Omega_c, sigma8 in θ: # can be done in parallel for all i 
@@ -1010,7 +1085,7 @@ nbins = 1
 # number of cross/auto angular power spectra
 ncombinations = int(nbins*(nbins+1)/2)
 # 100 log equal spaced ell samples should be fine according to https://arxiv.org/pdf/0705.0163.pdf
-ells = np.logspace(np.log10(100),np.log10(6000),10)
+ells = np.logspace(np.log10(100),np.log10(6000),100)
 # I think this is 1
 delta_l = 1
 """
@@ -1041,22 +1116,24 @@ input_shape = [ncombinations*len(ells)]
 
 theta_fid = np.array([0.27, 0.82]) # Omega_c and Sigma_8 
 
-delta_theta = np.array([0.05,0.05]) # perturbation values
+delta_theta = np.array([0.02,0.02]) # perturbation values
 n_s = 1000 # number of simulations
 n_train = 1 # splits, for if it doesnt fit into memory
 # use less simulations for numerical derivative
 derivative_fraction = 0.05
 eta = 1e-6 # learning rate
-num_epochs = int(10e3)
+num_epochs = int(1e3)
 keep_rate = 0.5 # 1 minus the dropout
 verbose = 0
 
 # MLP
-hidden_layers = [256,256,256]
+hidden_layers = [1024, 512, 256, 128, 128]
+# hidden_layers = [256,256,256] # didnt work, maybe because of the derivatives tho
+
 
 flatten = False # data is already flat, don't have to flatten it again
 
-initial_version = 1
+initial_version = 8
 
 version = initial_version
 
@@ -1085,14 +1162,21 @@ nholder1 = nholder(input_shape, generate_data, theta_fid, delta_theta, n_s,
         n_train, derivative_fraction, eta, parameters, num_epochs, keep_rate,
         verbose, version, flatten)
 
-# # IMNN network
+# # IMNN network, and data
 n = nholder1.create_network()
-# # Plot covariance
+# # Plot covariance as error bars
 nholder1.plot_covariance(show=False)
+
+# # Rescale the data
+# nholder1.rescale_data()
+
 # # Plot data
 nholder1.plot_data(show=False)
 # # plot derivatives
 nholder1.plot_derivatives(show=False)
+
+
+
 # # Train network
 nholder1.train_network(n)
 # # Plot the output

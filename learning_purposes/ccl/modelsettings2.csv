@@ -1,0 +1,2 @@
+Version,Learning rate,Keep rate,num_epochs,n_train,delta_theta,number of simulations,fiducial θ,differentiation fraction,input shape,number of summaries,calculate MLE,prebuild,save file,wv,bb,activation,α,hidden layers,Final detF train,Final detF test
+1020,1e-05,0.6,10000,1,[0.1 0.1],10000,[0. 1.],0.05,[10],2,True,True,Models/data/model1020,0.0,0.1,leaky_relu,0.01,"[256, 256, 256]",,
