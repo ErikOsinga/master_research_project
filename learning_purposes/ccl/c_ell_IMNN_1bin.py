@@ -1028,8 +1028,8 @@ def generate_data(θ, train=None, flatten=False):
             all_Cls = []
             for i in range(len(θ)): # can be done in parallel for all i 
 
-                # Cls = add_variance(Cls_original, covariance)
-                Cls = Cls_original
+                Cls = add_variance(Cls_original, covariance)
+                # Cls = Cls_original
                 all_Cls.append(Cls.flatten())
 
         
