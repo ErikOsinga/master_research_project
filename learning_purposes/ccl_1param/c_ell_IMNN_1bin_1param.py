@@ -97,6 +97,17 @@ class nholder(object):
         self.rescaled = False # set to true when rescale_data is called
 
         self.data, self.der_den = self.create_data()
+
+        # # Theoretical Cl with no noise, looks like upper/lower but with +/- 0
+        self.Cl_noiseless = generate_data([theta_fid], train=[0])[0][0]
+
+        # Covariance from theoretical Cl
+        Omega_c = self.theta_fid[0]
+        # generate cross power spectra Cl
+        Cls, dNdzs = euclid_ccl(Omega_c)
+        # Calculate the covariance for every ell
+        self.covariance = calculate_covariance(Cls)
+
         # Make parameters dictionary of params that are always the same or defined
         # by other parameters   
         self.parameters = { 'number of simulations': self.n_s,
@@ -288,6 +299,7 @@ class nholder(object):
                 ax[0].loglog(ells, ells*(ells+1)*Cl)
             ax[0].set_title(f'{nrows} examples from training data, Cl (0,0)')
             ax[0].set_xlabel(r'$\ell$')
+            ax[0].set_xscale('log')
             if self.rescaled:
                 ax[0].set_ylabel(r'$C_\ell$')
             else:
@@ -308,6 +320,7 @@ class nholder(object):
                 ax[1].loglog(ells, ells*(ells+1)*Cl)
             ax[1].set_title(f'{nrows} examples from test data, Cl (0,0)')
             ax[1].set_xlabel(r'$\ell$')
+            ax[1].set_xscale('log')
             if self.rescaled:
                 ax[1].set_ylabel(r'$C_\ell$')
             else:
@@ -324,6 +337,171 @@ class nholder(object):
         Plot the upper and lower perturbed data 
         Good to check if the sample variance is being 
         surpressed. This needs to be done or the network learns very slowly
+
+        VARIABLES
+        #______________________________________________________________
+        show                    bool    whether or not plt.show() is called
+
+        """
+
+        fig, ax = plt.subplots(3, 2, figsize = (15, 10))
+        # plt.subplots_adjust(wspace = 0, hspace = 0.1)
+        plt.subplots_adjust(hspace=0.5)
+        training_index = np.random.randint(self.n_train * self.n_p)
+        
+        if self.flatten:
+            print ('Plotting derivatives... reshaping the flattened data to %s'%str(input_shape))
+            # TODO
+            temp = self.data['x_p'][training_index].reshape(len(theta_fid),*input_shape)
+            x, y = temp.T[:,0]
+        else:
+            print ('Plotting derivatives... reshaping the flattened data to power spectra')
+            temp = self.data['x_p'][training_index].reshape(len(theta_fid),ncombinations,len(ells))
+            # temp has shape (num_params, ncombinations, len(ells))
+            Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
+        
+        # Cl has shape (1,10) since it is the data vector for the 
+        # upper training image for both params
+        labels =[r'$θ_1$ ($\Omega_c$)']
+
+        # we loop over them in this plot to assign labels
+        for i in range(Cl.shape[0]):
+            if self.rescaled:
+                ax[0, 0].plot(ells, Cl[i],label=labels[i])
+            else:
+                ax[0, 0].loglog(ells, ells*(ells+1)*Cl[i],label=labels[i])
+        ax[0, 0].set_title('One upper training example, Cl 0,0')
+        ax[0, 0].set_xlabel(r'$\ell$')
+        if self.rescaled:
+            ax[0, 0].set_ylabel(r'$C_\ell$')
+        else:
+            ax[0, 0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+
+        ax[0, 0].set_xscale('log')
+
+        ax[0, 0].legend(frameon=False)
+
+        if self.flatten:
+            # TODO
+            temp = self.data['x_m'][training_index].reshape(len(theta_fid),*input_shape)
+            x, y = temp.T[:,0]
+        else:
+            temp = self.data['x_m'][training_index].reshape(len(theta_fid),ncombinations,len(ells))
+            # temp has shape (num_params, ncombinations, len(ells))
+            Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
+
+        for i in range(Cl.shape[0]):
+            if self.rescaled:
+                ax[1, 0].plot(ells, Cl[i])
+            else:
+                ax[1, 0].loglog(ells, ells*(ells+1)*Cl[i])
+        ax[1, 0].set_title('One lower training example, Cl 0,0')
+        ax[1, 0].set_xlabel(r'$\ell$')
+        if self.rescaled:
+            ax[1, 0].set_ylabel(r'$C_\ell$')
+        else:
+            ax[1, 0].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+
+        ax[1, 0].set_xscale('log')
+
+        if self.flatten:
+            # TODO
+            temp = self.data["x_m"][training_index].reshape(len(theta_fid),*input_shape)
+            xm, ym = temp.T[:,0]
+
+            temp = self.data["x_p"][training_index].reshape(len(theta_fid),*input_shape)
+            xp, yp = temp.T[:,0]
+        else:
+            temp = self.data['x_m'][training_index].reshape(len(theta_fid),ncombinations,len(ells))
+            Cl_lower = temp[:,0,:]
+            temp = self.data['x_p'][training_index].reshape(len(theta_fid),ncombinations,len(ells))
+            Cl_upper = temp[:,0,:]
+
+        for i in range(Cl_lower.shape[0]):
+            ax[2, 0].plot(ells, (Cl_upper[i]-Cl_lower[i])/(2*delta_theta[i]))
+        ax[2, 0].set_title('Numerical derivative: train data');
+        ax[2, 0].set_xlabel(r'$\ell$')
+        ax[2, 0].set_ylabel(r'$\Delta C_\ell / 2\Delta \theta$')
+        ax[2, 0].axhline(xmin = 0., xmax = 1., y = 0.
+            , linestyle = 'dashed', color = 'black')
+        ax[2, 0].set_xscale('log')
+
+        test_index = np.random.randint(self.n_p)
+
+        if self.flatten:
+            # TODO
+            temp = self.data['x_p_test'][test_index].reshape(len(theta_fid),*input_shape)
+            x, y = temp.T[:,0]
+        else:
+            temp = self.data['x_p_test'][test_index].reshape(len(theta_fid),ncombinations,len(ells))
+            Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
+        
+        for i in range(Cl.shape[0]):
+            if self.rescaled:
+                ax[0, 1].plot(ells, Cl[i])
+            else:
+                ax[0, 1].loglog(ells, ells*(ells+1)*Cl[i])
+        ax[0, 1].set_title('One upper test example Cl 0,0')
+        ax[0, 1].set_xlabel(r'$\ell$')
+        if self.rescaled:
+            ax[0, 1].set_ylabel(r'$C_\ell$')
+        else:
+            ax[0, 1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+
+        if self.flatten:
+            # TODO
+            temp = self.data['x_m_test'][test_index].reshape(len(theta_fid),*input_shape)
+            x, y = temp.T[:,0]
+        else:
+            temp = self.data['x_m_test'][test_index].reshape(len(theta_fid),ncombinations,len(ells))
+            Cl = temp[:,0,:] # plot the (0,0) autocorrelation bin
+
+        ax[0, 1].set_xscale('log')
+
+        for i in range(Cl.shape[0]):
+            if self.rescaled:
+                ax[1, 1].plot(ells, Cl[i])
+            else:
+                ax[1, 1].loglog(ells, ells*(ells+1)*Cl[i])
+        ax[1, 1].set_title('One lower test example Cl 0,0')
+        ax[1, 1].set_xlabel(r'$\ell$')
+        if self.rescaled:
+            ax[1, 1].set_ylabel(r'$C_\ell$')
+        else:
+            ax[1, 1].set_ylabel(r'$\ell(\ell+1) C_\ell$')
+
+        if self.flatten:
+            # TODO
+            temp = self.data["x_m_test"][test_index].reshape(len(theta_fid),*input_shape)
+            xm, ym = temp.T[:,0]
+
+            temp = self.data["x_p_test"][test_index].reshape(len(theta_fid),*input_shape)
+            xp, yp = temp.T[:,0]
+        else:
+            temp = self.data['x_m_test'][test_index].reshape(len(theta_fid),ncombinations,len(ells))
+            Cl_lower = temp[:,0,:]
+            temp = self.data['x_p_test'][test_index].reshape(len(theta_fid),ncombinations,len(ells))
+            Cl_upper = temp[:,0,:]
+        
+        ax[1, 1].set_xscale('log')
+
+        for i in range(Cl_lower.shape[0]):
+            ax[2, 1].plot(ells, (Cl_upper[i]-Cl_lower[i])/(2*delta_theta[i]))
+        ax[2, 1].set_title('Numerical derivative: train sample');
+        ax[2, 1].set_xlabel(r'$\ell$')
+        ax[2, 1].set_ylabel(r'$\Delta C_\ell / \Delta \theta $')
+        ax[2, 1].axhline(xmin = 0., xmax = 1., y = 0.
+            , linestyle = 'dashed', color = 'black')
+        ax[2, 1].set_xscale('log')
+
+        plt.savefig(f'{self.figuredir}derivatives_visualization_{self.modelversion}.png')
+        if show: plt.show()
+        plt.close()
+
+    def plot_derivatives_divided(self, show=False):
+        """ 
+        Plot the upper and lower perturbed data, divided by CL 
+        see question by MJ: https://github.com/ErikOsinga/master_research_project/issues/6
 
         VARIABLES
         #______________________________________________________________
@@ -401,12 +579,18 @@ class nholder(object):
             Cl_upper = temp[:,0,:]
 
         for i in range(Cl_lower.shape[0]):
-            ax[2, 0].plot(ells, (Cl_upper[i]-Cl_lower[i]))
+            ax[2, 0].plot(ells, (Cl_upper[i]-Cl_lower[i])/self.Cl_noiseless)
         ax[2, 0].set_title('Difference between upper and lower training examples');
         ax[2, 0].set_xlabel(r'$\ell$')
-        ax[2, 0].set_ylabel(r'$\Delta C_\ell$')
+        ax[2, 0].set_ylabel(r'$\Delta C_\ell$ / $C_{\ell,thr}$')
         ax[2, 0].axhline(xmin = 0., xmax = 1., y = 0.
             , linestyle = 'dashed', color = 'black')
+        ax[2, 0].set_xscale('log')
+
+        # also plot sigma_cl / CL
+        sigma_cl = np.sqrt(self.covariance)
+        ax[2, 0].plot(ells, sigma_cl/self.Cl_noiseless, label=r'$\sigma_{Cl} / C_{\ell,thr}$')
+        ax[2, 0].legend(frameon=False)
 
         test_index = np.random.randint(self.n_p)
 
@@ -464,14 +648,19 @@ class nholder(object):
             Cl_upper = temp[:,0,:]
         
         for i in range(Cl_lower.shape[0]):
-            ax[2, 1].plot(ells, (Cl_upper[i]-Cl_lower[i]))
+            ax[2, 1].plot(ells, (Cl_upper[i]-Cl_lower[i]) / self.Cl_noiseless)
         ax[2, 1].set_title('Difference between upper and lower test samples');
         ax[2, 1].set_xlabel(r'$\ell$')
-        ax[2, 1].set_ylabel(r'$\Delta C_\ell$')
+        ax[2, 1].set_ylabel(r'$\Delta C_\ell$ / $C_{\ell,thr}$')
         ax[2, 1].axhline(xmin = 0., xmax = 1., y = 0.
             , linestyle = 'dashed', color = 'black')
+        ax[2, 1].set_xscale('log')
 
-        plt.savefig(f'{self.figuredir}derivatives_visualization_{self.modelversion}.png')
+        # also plot sigma_cl / CL
+        sigma_cl = np.sqrt(self.covariance)
+        ax[2, 1].plot(ells, sigma_cl/self.Cl_noiseless, label=r'$\sigma_{Cl} / C_{\ell,thr}$')
+
+        plt.savefig(f'{self.figuredir}derivatives_visualization_divided_{self.modelversion}.png')
         if show: plt.show()
         plt.close()
 
@@ -531,8 +720,21 @@ class nholder(object):
         """
 
         # Take logarithm of data
+        """ didnt work
         for key in self.data.keys():
             self.data[key] = np.log10(self.data[key])
+        """
+
+        # Scale by length of vector
+        """
+        for key in self.data.keys():
+            self.data[key] /= np.linalg.norm(self.Cl_noiseless)
+        """
+
+        # Scale by natural logarithm
+        for key in self.data.keys():
+            self.data[key] = np.log(self.data[key])
+
     
     def train_network(self, n, to_continue=False):
         """ 
@@ -564,7 +766,7 @@ class nholder(object):
         n                       class   IMNN class as defined in IMNN.py
         
         """
-        fig, ax = plt.subplots(3, 1, sharex = True, figsize = (8, 14))
+        fig, ax = plt.subplots(5, 1, sharex = True, figsize = (8, 14))
         plt.subplots_adjust(hspace = 0)
         end = len(n.history["det(F)"])
         epochs = np.arange(end)
@@ -585,29 +787,39 @@ class nholder(object):
         ax[2].set_ylabel(r'$|{\bf C}|$')
         ax[2].set_xlim([0, len(epochs)]);
         
-        '''
-        # Derivative wrt to theta1                 theta1 is column 0
-        ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,0].flatten()
-            , color = 'C0', label='theta1',alpha=0.5)
-        # Derivative wrt to theta2                 theta1 is column 1
-        ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,1].flatten()
-            , color = 'C0', ls='dashed', label='theta2',alpha=0.5)
+        # Derivative of first summary wrt to theta1                theta1 is 3rd dimension index 0
+        ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,0,0]
+            , color = 'C0', label=r'$\theta_1$',alpha=0.5)
+        
+        """
+        # Derivative of first summary wrt to theta2                theta2 is 3rd dimension index 1
+        ax[3].plot(epochs, np.array(n.history["dμdθ"])[:,0,1]
+            , color = 'C0', ls='dashed', label=r'$\theta_2$',alpha=0.5)
+        """
 
-        ax[3].plot(epochs, np.array(n.history["test dμdθ"])[:,0].flatten()
-            , color = 'C1', label='theta1',alpha=0.5)
-        ax[3].plot(epochs, np.array(n.history["test dμdθ"])[:,1].flatten()
-            , color = 'C1', ls='dashed', label='theta2',alpha=0.5)
+        # Test Derivative of first summary wrt to theta1                   theta1 is 3rd dimension index 0
+        ax[3].plot(epochs, np.array(n.history["test dμdθ"])[:,0,0]
+            , color = 'C1', label=r'$\theta_1$',alpha=0.5)
+        
+        """
+        # Test Derivative of first summary wrt to theta2                   theta2 is 3rd dimension index 1
+        ax[3].plot(epochs, np.array(n.history["test dμdθ"])[:,0,1]
+            , color = 'C1', ls='dashed', label=r'$\theta_2$',alpha=0.5)
         ax[3].legend(frameon=False)
+        """
 
         ax[3].set_ylabel(r'$\partial\mu/\partial\theta$')
         ax[3].set_xlabel('Number of epochs')
         ax[3].set_xlim([0, len(epochs)])
-        ax[4].plot(epochs, np.array(n.history["μ"]).reshape((np.prod(np.array(n.history["μ"]).shape))),alpha=0.5)
-        ax[4].plot(epochs, np.array(n.history["test μ"]).reshape((np.prod(np.array(n.history["test μ"]).shape))),alpha=0.5)
+
+        # Mean of network output summary 1
+        ax[4].plot(epochs, np.array(n.history["μ"])[:,0],alpha=0.5)
+        # Mean of test output network summary 1
+        ax[4].plot(epochs, np.array(n.history["test μ"])[:,0],alpha=0.5)
         ax[4].set_ylabel('μ')
         ax[4].set_xlabel('Number of epochs')
         ax[4].set_xlim([0, len(epochs)])
-        '''
+        
 
         print ('Maximum Fisher info on train data:',np.max(n.history["det(F)"]))
         print ('Final Fisher info on train data:',(n.history["det(F)"][-1]))
@@ -618,6 +830,7 @@ class nholder(object):
         if np.max(n.history["det(test F)"]) == n.history["det(test F)"][-1]:
             print ('Promising network found, possibly more epochs needed')
 
+        plt.tight_layout()
         plt.savefig(f'{self.figuredir}variables_vs_epochs_{self.modelversion}.png')
         if show: plt.show()
         plt.close()
@@ -1056,7 +1269,7 @@ def generate_data(θ, train=None, flatten=False):
 
         return np.asarray(all_Cls) # shape (num_simulations, ncombinations*len(ells))
 
-    if train is not None: # generate derivatives, with perturbed thetas
+    if train is not None: # generate derivatives, with perturbed thetas, noise free
         
         perturb_param1 = np.array([train[0]])
         θ_first_param = θ + perturb_param1
@@ -1087,7 +1300,8 @@ nbins = 1
 # number of cross/auto angular power spectra
 ncombinations = int(nbins*(nbins+1)/2)
 # 100 log equal spaced ell samples should be fine according to https://arxiv.org/pdf/0705.0163.pdf
-ells = np.logspace(np.log10(100),np.log10(6000),100)
+# ells = np.logspace(np.log10(100),np.log10(6000),100)
+ells = np.logspace(np.log10(10),np.log10(10000),1000)
 # I think this is 1
 delta_l = 1
 """
@@ -1116,13 +1330,14 @@ input_shape = [ncombinations*len(ells)]
 
 theta_fid = np.array([0.211]) # Omega_c 
 
-delta_theta = np.array([0.11]) # perturbation values
-n_s = 1000 # number of simulations
+# delta_theta = np.array([0.11]) # perturbation values
+delta_theta = np.array([0.002])
+n_s = 10000 # number of simulations
 n_train = 1 # splits, for if it doesnt fit into memory
 # use less simulations for numerical derivative
 derivative_fraction = 0.05
-eta = 1e-6 # learning rate
-num_epochs = int(1e3)
+eta = 1e-10 # learning rate
+num_epochs = int(1e2)
 keep_rate = 0.5 # 1 minus the dropout
 verbose = 0
 
@@ -1133,7 +1348,7 @@ hidden_layers = [1024, 512, 256, 128, 128]
 
 flatten = False # data is already flat, don't have to flatten it again
 
-initial_version = 2
+initial_version = 6
 
 version = initial_version
 
@@ -1164,10 +1379,11 @@ nholder1 = nholder(input_shape, generate_data, theta_fid, delta_theta, n_s,
 
 # # IMNN network, and data
 n = nholder1.create_network()
+
 # # Plot covariance as error bars
 nholder1.plot_covariance(show=False)
 
-# # Rescale the data
+# # Rescale the data by taking the natural logarithm
 nholder1.rescale_data()
 
 # # Plot data
@@ -1175,6 +1391,8 @@ nholder1.plot_data(show=False)
 # # plot derivatives
 nholder1.plot_derivatives(show=False)
 
+# # plot what MJ asked
+# nholder1.plot_derivatives_divided(show=True)
 
 
 # # Train network
