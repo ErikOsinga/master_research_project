@@ -1,0 +1,5 @@
+Version,Learning rate,Keep rate,num_epochs,n_train,delta_theta,number of simulations,fiducial θ,differentiation fraction,input shape,number of summaries,calculate MLE,prebuild,save file,wv,bb,activation,α,hidden layers,Final detF train,Final detF test
+3,0.0001,0.6,10000,1,[0.1 0.1],1000,[1. 2.],0.05,"[100, 1, 2]",2,True,True,Models/data/model3,0.0,0.1,leaky_relu,0.01,"[[10, [5, 5], [2, 2], 'SAME'], [6, [3, 3], [1, 1], 'SAME'], 100, 100]",,
+3,0.0001,0.6,10000,1,[0.1 0.1],1000,[1. 2.],0.05,"[100, 1, 2]",2,True,True,Models/data/model3,0.0,0.1,leaky_relu,0.01,"[[10, [5, 5], [2, 2], 'SAME'], [6, [3, 3], [1, 1], 'SAME'], 100, 100]",,
+3,0.001,0.6,10000,1,[0.1 0.1],1000,[1. 2.],0.05,"[100, 1, 2]",2,True,True,Models/data/model3,0.0,0.1,leaky_relu,0.01,"[[10, [5, 5], [2, 2], 'SAME'], [6, [3, 3], [1, 1], 'SAME'], 100, 100]",9553556949857969607813365760.00,574.98
+3,0.0001,0.6,30000,1,[0.1 0.1],1000,[1. 2.],0.05,"[100, 1, 2]",2,True,True,Models/data/model3,0.0,0.1,leaky_relu,0.01,"[[10, [5, 5], [2, 2], 'SAME'], [6, [3, 3], [1, 1], 'SAME'], 100, 100]",161114129553485505949098573824.00,131.86

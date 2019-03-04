@@ -43,6 +43,7 @@ def save_model_settings(nholder, settings):
 	"""
 
 	file = nholder.modelsettings_name
+	print (f'Saving modelsettings to {file}')
 	# open the previous modelsettings.csv file
 	try:
 		csv_settings = pd.read_csv(file)
@@ -57,7 +58,12 @@ def save_model_settings(nholder, settings):
 	
 	# Append to end of file
 	appendloc = len(csv_settings) 
-	csv_settings.loc[appendloc] = appenddata
+	try:
+		csv_settings.loc[appendloc] = appenddata
+	except ValueError:
+		print (f'{file} has incorrect columns')
+		print ('Trying to set ', appenddata)
+		raise ValueError('Please change your modelsettings.csv file to accommodate the correct column names, or delete the file')
 	# Write 
 	csv_settings.to_csv(file, index = False)
 
@@ -70,12 +76,24 @@ def save_final_fisher_info(nholder, n):
 	file = nholder.modelsettings_name
 	# open the modelsettings.csv file
 	csv_settings = pd.read_csv(file)
-	# the row of the current version
+	# Likely the row of the current version
 	current_row = len(csv_settings)-1
-	assert csv_settings['Version'][current_row] == nholder.modelversion
+	# make sure it is indeed the current version
+	if csv_settings['Version'][current_row] == nholder.modelversion:
+		pass
+	else:
+		print ("Another network was likely finished before this run.")
+		print ("Finding the most recent version of the run")
+		print ("Please check manually if this did not overwrite anything")
+		current_row = np.where(csv_settings['Version'][::-1] == nholder.modelversion)[0][0]
 
-	csv_settings['Final detF train'][current_row] = '{0:.2f}'.format(n.history["det(F)"][-1])
-	csv_settings['Final detF test'][current_row] = '{0:.2f}'.format(n.history["det(test F)"][-1])
+	# These two lines give a VIEW vs COPY warning
+	# csv_settings['Final detF train'][current_row] = '{0:.2f}'.format(n.history["det(F)"][-1])
+	# csv_settings['Final detF test'][current_row] = '{0:.2f}'.format(n.history["det(test F)"][-1])
+
+	# Proper practice seems to be the following syntax
+	csv_settings.loc[current_row,('Final detF train')] = '{0:.2f}'.format(n.history["det(F)"][-1])
+	csv_settings.loc[current_row,('Final detF test') ] = '{0:.2f}'.format(n.history["det(test F)"][-1])	
 
 	csv_settings.to_csv(file, index = False)
 
