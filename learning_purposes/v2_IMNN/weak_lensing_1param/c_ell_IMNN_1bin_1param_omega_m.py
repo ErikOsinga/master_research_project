@@ -25,7 +25,7 @@ import pyccl as ccl # for generating weak lensing cross power spectra
 
 """
 Summarizing a weak lensing data vector. Generated with the pyccl module.
-The goal is to predict Omega_c and Sigma_8 for a Euclid-like survey.
+The goal is to predict Omega_M and Sigma_8 for a Euclid-like survey.
 
 We assume a redshift distribution given by
     z^alpha * exp(z/z0)^beta
@@ -138,7 +138,7 @@ class nholder(object):
         self.Cl_noiseless = self.Cl_noiseless[0] # remove redundant dimension afterwards
 
         # generate cross power spectra Cl
-        # Cls, dNdzs = euclid_ccl(Omega_c)
+        # Cls, dNdzs = euclid_ccl(Omega_M)
 
         # Make parameters dictionary of params that are always the same or defined
         # by other parameters   
@@ -158,7 +158,7 @@ class nholder(object):
         self.modelloc = 'Models/' #location where the models (networks) are saved
         
         #the file in which the network settings will be saved
-        self.modelsettings_name = 'modelsettings.csv' 
+        self.modelsettings_name = 'modelsettings2.csv' 
 
         self.modelsettings = {'Version' : str(self.modelversion),
                         'Learning rate': str(self.eta),
@@ -298,10 +298,10 @@ class nholder(object):
         really tell us much about the covariance values
         """
 
-        Omega_c = self.theta_fid[0]
+        Omega_M = self.theta_fid[0]
 
         # generate cross power spectra Cl
-        Cls, dNdzs = euclid_ccl(Omega_c)
+        Cls, dNdzs = euclid_ccl(Omega_M)
 
         # Calculate the covariance for every ell
         covariance = calculate_covariance(Cls)
@@ -424,7 +424,7 @@ class nholder(object):
         
         # Cl has shape (1,10) since it is the data vector for the 
         # upper training image for both params
-        labels =[r'$θ_1$ ($\Omega_c$)']
+        labels =[r'$θ_1$ ($\Omega_M$)']
 
         # we loop over them in this plot to assign labels
         for i in range(Cl.shape[0]):
@@ -490,7 +490,7 @@ class nholder(object):
 
         for i in range(Cl_lower.shape[0]):
             ax[3, 0].plot(ells, (Cl_upper[i]-Cl_lower[i])/(2*delta_theta[i]))
-        ax[3, 0].set_title('Numerical derivative (not used): train sample');
+        ax[3, 0].set_title('Numerical derivative: train sample');
         ax[3, 0].set_xlabel(r'$\ell$')
         ax[3, 0].set_ylabel(r'$\Delta C_\ell / 2\Delta \theta$')
         ax[3, 0].axhline(xmin = 0., xmax = 1., y = 0.
@@ -568,7 +568,7 @@ class nholder(object):
 
         for i in range(Cl_lower.shape[0]):
             ax[3, 1].plot(ells, (Cl_upper[i]-Cl_lower[i])/(2*delta_theta[i]))
-        ax[3, 1].set_title('Numerical derivative (not used): train sample');
+        ax[3, 1].set_title('Numerical derivative: train sample');
         ax[3, 1].set_xlabel(r'$\ell$')
         ax[3, 1].set_ylabel(r'$\Delta C_\ell / \Delta \theta $')
         ax[3, 1].axhline(xmin = 0., xmax = 1., y = 0.
@@ -608,7 +608,7 @@ class nholder(object):
         
         # Cl has shape (1,10) since it is the data vector for the 
         # upper training image for both params
-        labels =[r'$θ_1$ ($\Omega_c$)']
+        labels =[r'$θ_1$ ($\Omega_M$)']
 
         # we loop over them in this plot to assign labels
         for i in range(Cl.shape[0]):
@@ -841,9 +841,9 @@ class nholder(object):
         See also load_data_from_disk
 
         """
-        Omega_c = self.theta_fid[0]
+        Omega_M = self.theta_fid[0]
         for key in self.data.keys():
-            np.save(f'./preloaded_data/{Omega_c}_{self.delta_theta[0]}_{key}.npy', self.data[key])
+            np.save(f'./preloaded_data/{Omega_M}_{self.delta_theta[0]}_{key}.npy', self.data[key])
 
     def load_data_from_disk(self):
         """
@@ -853,13 +853,13 @@ class nholder(object):
 
         """
         data = dict()
-        Omega_c = self.theta_fid[0]
+        Omega_M = self.theta_fid[0]
         der_den = 1. / (2. * self.delta_theta)
 
-        print ("Loading data from disk.. Omega_c = ", Omega_c, "delta_theta = ", self.delta_theta[0])
+        print ("Loading data from disk.. Omega_M = ", Omega_M, "delta_theta = ", self.delta_theta[0])
 
         for key in ['x_central', 'x_m', 'x_p', 'x_central_test', 'x_m_test', 'x_p_test']:
-            data[key] = np.load(f'./preloaded_data/{Omega_c}_{self.delta_theta[0]}_{key}.npy')
+            data[key] = np.load(f'./preloaded_data/{Omega_M}_{self.delta_theta[0]}_{key}.npy')
 
         return data, der_den
 
@@ -1029,22 +1029,22 @@ class nholder(object):
         if show: plt.show()
         plt.close()
 
-    def calc_derivative_Omega_c(self):
+    def calc_derivative_Omega_M(self):
         """
         Calculates the (worst) numerical derivative of the real data
         
-        # We calculate the 'normal' derivative wrt Omega_C:
-            d (C_ell)/ d (Omega_c)
+        # We calculate the 'normal' derivative wrt Omega_M:
+            d (C_ell)/ d (Omega_M)
         """
 
-        Omega_c = self.theta_fid[0] # Fiducial param
-        domega = 0.002 
+        Omega_M = self.theta_fid[0] # Fiducial param
+        domega = 0.001
         # Calculate the noiseless Cl just above the fidicual param
-        Cls_t, _ = euclid_ccl(Omega_c = Omega_c+domega, sigma8=0.83)            
+        Cls_t, _ = euclid_ccl(Omega_M = Omega_M+domega)
         # Numerical derivative, give Cl noiseless its redundant axis back
-        deriv_Oc = (Cls_t - self.Cl_noiseless[np.newaxis, :]) / domega
+        deriv_OM = (Cls_t - self.Cl_noiseless[np.newaxis, :]) / domega
 
-        return deriv_Oc # shape (1,100)
+        return deriv_OM # shape (1,100)
 
     def do_ABC(self, n, real_data, prior, draws, show=False, epsilon=None, oneD=True
         ,analytic_posterior = None, param_array = None):
@@ -1112,7 +1112,7 @@ class nholder(object):
             ax[0].set_ylabel('First network output', labelpad = 0)
             ax[0].set_xlim([prior["lower"][0], prior["upper"][0]])
             # ax[0].set_xticks([])
-            ax[1].set_xlabel(r"$\theta_1 = \Omega_c$")
+            ax[1].set_xlabel(r"$\theta_1 = \Omega_M$")
 
             # plot the posterior
             ax[1].hist(abc.ABC_dict["parameters"][accept_indices], np.linspace(prior["lower"][0], prior["upper"][0], 100), histtype = u'step', density = True, linewidth = 1.5, color = "C6", label = "ABC posterior");
@@ -1121,7 +1121,7 @@ class nholder(object):
             ax[1].set_ylabel('$\\mathcal{P}(\\theta_1|{\\bf d})$')
             # ax[1].set_yticks([])
             # ax[1].set_xticks([])
-            ax[1].set_xlabel(r"$\theta_1 = \Omega_c$")
+            ax[1].set_xlabel(r"$\theta_1 = \Omega_M$")
 
             # Theta-fid
             ax[1].axvline(theta_fid[0], linestyle = "dashed", label = "$\\theta_{fid}$")
@@ -1239,7 +1239,7 @@ class nholder(object):
                 , prior["upper"][0], 100), histtype = u'step', density = True
                 , linewidth = 1.5, label = "PMC posterior", color = 'k')
 
-            ax[1].set_xlabel('$\\theta_1 = \Omega_c$ ')
+            ax[1].set_xlabel('$\\theta_1 = \Omega_M$ ')
             ax[1].set_ylabel('$\\mathcal{P}(\\theta1|{\\bf d})$')
             ax[1].set_yticks([])
 
@@ -1305,13 +1305,12 @@ class nholder(object):
 # HELPER FUNCTIONS to generate data
 #################################
 
-def euclid_ccl(Omega_c, sigma8=0.83):
+def euclid_ccl(Omega_M):
     """
-    Generate C_ell as function of ell for a given Omega_c and Sigma8
+    Generate C_ell as function of ell for a given Omega_M and Sigma8
 
     Inputs
-        Omega_c -- float: CDM density 
-        Sigma_8 -- float: sigma_8
+        Omega_M -- float: Matter density 
 
     Assumed global variables
         z -- np.array: samples of z
@@ -1327,9 +1326,19 @@ def euclid_ccl(Omega_c, sigma8=0.83):
                 dNdz per redshift bin, for all redshifts
 
     """
+    
+    # Parameters from https://arxiv.org/pdf/1903.01473.pdf
+    Omega_b_fraction = 0.15653724 # fraction of Omega_M
+    
+    sigma8 = 0.811
+    Omega_b = Omega_b_fraction * Omega_M
+    Omega_c = (1 - Omega_b_fraction) * Omega_M 
+    h = 0.674
+    ns = 0.965
+    w0 = -1.03
 
-    cosmo_fid = ccl.Cosmology(Omega_c=Omega_c, Omega_b=0.045, h=0.71
-        , sigma8=sigma8, n_s=0.963)#, transfer_function='emulator', matter_power_spectrum='emu')
+    cosmo_fid = ccl.Cosmology(Omega_c=Omega_c, Omega_b=Omega_b, h=0.674
+        , sigma8=sigma8, n_s=ns, w0=w0)#, transfer_function='emulator', matter_power_spectrum='emu')
 
     dNdzs = np.zeros((nbins, z.size))
     shears = []
@@ -1438,7 +1447,7 @@ def add_variance(Cls_original, covariance_diag):
 
     return Cls_perturbed
 
-def generate_test_train_Cls(Omega_c, sigma8):
+def generate_test_train_Cls(Omega_M, sigma8):
     """
     Since we make simulations at fiducial parameter values both for the training
     and for the test set, it is computationally smart to generate the Cls for 
@@ -1452,7 +1461,7 @@ def generate_test_train_Cls(Omega_c, sigma8):
     raise ValueError("TODO later")
 
     # a noise-free version of Cl 
-    Cls, dNdzs = euclid_ccl(Omega_c, sigma8)
+    Cls, dNdzs = euclid_ccl(Omega_M, sigma8)
         
     # The covariance for every ell for this Cl
     covariance = calculate_covariance(Cls)
@@ -1464,7 +1473,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
     """
     Holder function for the generation of the Cls
     
-    θ = vector of lists of [Omega_c, Sigma8]'s to produce a Cl for
+    θ = vector of lists of [Omega_M]'s to produce a Cl for
     train = either None or an array of [delta_theta1,delta_theta2] for generating
             the upper and lower derivatives
     preload = True / False, True if we can load the data from disk
@@ -1485,18 +1494,18 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
         if train is not None:
             perturb_param1 = np.array([train[0]])
             θ_first_param = θ[0,0] + perturb_param1
-            print (f"Checking disk for saved data with Omega_c = {θ_first_param}")
+            print (f"Checking disk for saved data with Omega_M = {θ_first_param}")
             try:
-                all_Cls = np.load(f'./preloaded_data/Omega_c_{θ_first_param}')
+                all_Cls = np.load(f'./preloaded_data/Omega_M_{θ_first_param}')
                 return all_Cls
             except FileNotFoundError:
                 print ('File not found.')
 
         else:
-            Omega_c = θ[0,0]
-            print (f"Checking disk for saved data with Omega_c = {Omega_c}")
+            Omega_M = θ[0,0]
+            print (f"Checking disk for saved data with Omega_M = {Omega_M}")
             try:
-                all_Cls = np.load(f'./preloaded_data/Omega_c_{Omega_c}')
+                all_Cls = np.load(f'./preloaded_data/Omega_M_{Omega_M}')
                 return all_Cls
             except FileNotFoundError:
                 print ('File not found')
@@ -1504,15 +1513,15 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
 
     def helper_func(θ):
         """
-        Generates noisy simulations at θ = vector of lists of [Omega_c]'s
+        Generates noisy simulations at θ = vector of lists of [Omega_M]'s
         Called once if train = None, called twice if not
         """
         if (θ[:,0] == θ[0,0]).all():
-            Omega_c = θ[0,0]
-            print (f"List of parameters contains all the same parameters, Omega_c={Omega_c}")
+            Omega_M = θ[0,0]
+            print (f"List of parameters contains all the same parameters, Omega_M={Omega_M}")
             
             # generate cross power spectra Cl
-            Cls, dNdzs = euclid_ccl(Omega_c)
+            Cls, dNdzs = euclid_ccl(Omega_M)
 
             # Calculate the covariance for every ell, have to do this before flattening
             covariance = calculate_covariance(Cls)
@@ -1542,15 +1551,15 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
                         all_Cls.append(Cls.flatten())
         
         # TODO // Think about how to generate multiple at once
-        # Omega_c, sigma8 = θ,  not possible if they are different params
+        # Omega_M, sigma8 = θ,  not possible if they are different params
         else: # generate the simulations one by one...
             print ("List of parameters does not contain all the same parameters. Slow.")
             all_Cls = []        
-            for Omega_c in θ[:,0]: # Just one parameter
-                print (Omega_c)
-                # Can in theory be done in parallel for all different Omega_c's
+            for Omega_M in θ[:,0]: # Just one parameter
+                print (Omega_M)
+                # Can in theory be done in parallel for all different Omega_M's
 
-                Cls, dNdzs = euclid_ccl(Omega_c)
+                Cls, dNdzs = euclid_ccl(Omega_M)
 
                 # Calculate the covariance for every ell, have to do this before flattening
                 covariance = calculate_covariance(Cls)
@@ -1564,7 +1573,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
 
                 all_Cls.append(Cls.flatten()) # flatten the Cl data
 
-        # if not preload: np.save(f'./preloaded_data/Omega_c_{Omega_c}', np.asarray(all_Cls))
+        # if not preload: np.save(f'./preloaded_data/Omega_M_{Omega_M}', np.asarray(all_Cls))
 
         return np.asarray(all_Cls) # shape (num_simulations, ncombinations*len(ells))
 
@@ -1581,7 +1590,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
                                         len(θ),1,all_Cls_first_param.shape[1])
         all_Cls = all_Cls_first_param
 
-        # if not preload: np.save(f'./preloaded_data/Omega_c_{θ_first_param[0,0]}', all_Cls)
+        # if not preload: np.save(f'./preloaded_data/Omega_M_{θ_first_param[0,0]}', all_Cls)
 
         return all_Cls # shape (num_simulations, num_params, ncombinations*len(ells)
 
@@ -1598,33 +1607,44 @@ def generate_data_ABC(theta, seed, simulator_args, train=False):
     # theta = theta.reshape(len(theta))
     # print ((theta).shape)
 
+    def helper():
+        # Can in theory be done in parallel for all different Omega_M's
+        # print (Omega_M)
+        
+        # how far in x we have to go
+        dOmega = Omega_M - theta_fid[0]
+
+        # Extrapolate from the noiseless fiducial 
+        Cls = nholder1.Cl_noiseless[np.newaxis, :] + (dOmega*deriv_Oc)
+
+        # Calculate the covariance for every ell, have to do this before flattening
+        covariance = calculate_covariance(Cls)
+
+        # Cls are returned as array (ncombinations,100), if ncombinations=1, we must flatten it
+        Cls = Cls.flatten() # to get rid of the redundant dimension
+
+        # Perturb the Cl with
+        # a 1D Gaussian with std=sqrt(covariance)
+        Cls = add_variance(Cls, covariance)
+
+        all_Cls.append(Cls.flatten()) # flatten the Cl data
+
+
     if train:
         sys.exit("No derivative data in ABC")
 
     else: 
-        all_Cls = []        
-        for Omega_c in tqdm.tqdm(theta[:,0]): # Just one parameter
-            # Can in theory be done in parallel for all different Omega_c's
-            # print (Omega_c)
+        all_Cls = []   
+        if len(theta[:,0]) < 1000:
+            # Dont show progress bar for anything < 1000
+            for Omega_M in theta[:,0]:  # Just one parameter so [:,0]
+                # Can in theory be done in parallel for all different Omega_M's
+                helper()
+        else:   
+            # Show progress bar
+            for Omega_M in tqdm.tqdm(theta[:,0]):  # Just one parameter so [:,0]
+                helper()
             
-            # how far in x we have to go
-            dOmega = Omega_c - theta_fid[0]
-
-            # Extrapolate from the noiseless fiducial 
-            Cls = nholder1.Cl_noiseless[np.newaxis, :] + (dOmega*deriv_Oc)
-
-            # Calculate the covariance for every ell, have to do this before flattening
-            covariance = calculate_covariance(Cls)
-
-            # Cls are returned as array (ncombinations,100), if ncombinations=1, we must flatten it
-            Cls = Cls.flatten() # to get rid of the redundant dimension
-
-            # Perturb the Cl with
-            # a 1D Gaussian with std=sqrt(covariance)
-            Cls = add_variance(Cls, covariance)
-
-            all_Cls.append(Cls.flatten()) # flatten the Cl data
-
     if nholder1.rescaled:
         print ("Rescaling the data (hopefully) same as the network")
         print ("Check if the rescaling went correctly")
@@ -1720,8 +1740,7 @@ nzs = euclid_nzs(num_dens)
 # The input shape is a 1D vector of length 1*len(ells) (100 most of the time in this case)
 input_shape = [ncombinations*len(ells)] 
 
-theta_fid = np.array([0.211]) # Omega_c 
-# theta_fid = np.array([0.20]) # Omega_c 
+theta_fid = np.array([0.315]) # Omega_M 
 
 # delta_theta = np.array([0.11]) # perturbation values
 delta_theta = np.array([0.02])
@@ -1736,7 +1755,7 @@ derivative_fraction = 1.0 # fraction of n_s
 derivative_fraction_val = 0.2 # fraction of n_s
 
 eta = 1e-3 # learning rate
-num_epochs = int(10e3) # int(25e3)
+num_epochs = int(10e3) 
 keep_rate = 1.0 # 1 minus the dropout
 verbose = 0
 
@@ -1752,7 +1771,7 @@ dtype = 32 # float32
 noiseless_deriv = False # whether to not add noise to upper/lower simulations
 flatten = False # data is already flat, don't have to flatten it again
 
-initial_version = 8
+initial_version = 10
 
 # For building the network, and defining number of summaries
 n_summaries = 1
@@ -1847,14 +1866,14 @@ if nholder1.rescaled:
 # print (np.mean(real_data.reshape(input_shape),axis=0))
 
 # Generate numerical derivative, needed for the generate_data_ABC() func
-deriv_Oc = nholder1.calc_derivative_Omega_c()
+deriv_Oc = nholder1.calc_derivative_Omega_M()
 
 # # Perform ABC
-# A Gaussian prior with mean 0.22, variance 0.2, truncated at 0.20 and 0.24
-prior = {'mean': np.array([0.22]),
-         'variance': np.array([[0.1]]),
-         'lower': np.array([0.20]),
-         'upper': np.array([0.24]) 
+# A Gaussian prior with mean 0.30, variance 0.01, truncated at 0.1 and 0.6
+prior = {'mean': np.array([0.30]),
+         'variance': np.array([[0.01]]),
+         'lower': np.array([0.25]),
+         'upper': np.array([0.35]) 
          }
 
 draws = int(1e5)

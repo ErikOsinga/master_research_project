@@ -1,0 +1,8 @@
+Version,Learning rate,Keep rate,num_epochs,n_train,delta_theta,number of simulations,fiducial,number of derivative simulations,input shape,dtype,noiseless deriv,number of summaries,filename,activation,α,hidden layers,flatten,Final detF train,Final detF test
+8,0.001,1.0,10000.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model8,leaky_relu,0.01,"[256, 256]",False,2995479.25,2806169.75
+8,0.001,1.0,10.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model8,leaky_relu,0.01,"[256, 256]",False,819359.88,864438.19
+8,0.001,1.0,10.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model8,leaky_relu,0.01,"[256, 256]",False,736475.44,651241.5
+8,0.001,1.0,10000.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model8,leaky_relu,0.01,"[256, 256]",False,,
+8,0.001,1.0,10000.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model8,leaky_relu,0.01,"[256, 256]",False,2736870.5,2650999.25
+9,0.001,1.0,10000.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model9,leaky_relu,0.01,"[256, 256]",False,,
+10,0.001,1.0,10000.0,5,[0.02],1000,[0.315],1000,[100],32,False,1,Models/data/model10,leaky_relu,0.01,"[256, 256]",False,3059621.25,2953556.25
