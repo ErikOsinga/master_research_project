@@ -1,0 +1,13 @@
+Version,Learning rate,Keep rate,num_epochs,n_train,delta_theta,number of simulations,fiducial,number of derivative simulations,input shape,dtype,noiseless deriv,number of summaries,filename,activation,α,hidden layers,flatten,Final detF train,Final detF test
+1,0.001,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+1,0.001,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,175906.73,150572.53
+1,0.001,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+1,0.001,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+2,1e-05,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,True,1,Models/data/model2,leaky_relu,0.01,"[256, 256]",True,,
+2,1e-10,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,True,1,Models/data/model2,leaky_relu,0.01,"[256, 256]",True,,
+1,1e-10,1.0,10000,5,[0.02],1000,[0.315],1000,[60],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+1,1e-10,1.0,10000,5,[0.02],1000,[0.315],1000,[600],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+1,1e-10,1.0,10000,5,[0.02],1000,[0.315],1000,[60],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+1,1e-10,1.0,10000,5,[0.02],1000,[0.315],1000,[60],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+1,0.001,1.0,500,5,[0.02],1000,[0.315],1000,[600],32,False,1,Models/data/model1,leaky_relu,0.01,"[256, 256]",True,,
+3,0.001,1.0,500,5,[0.02],1000,[0.315],1000,[60],32,False,1,Models/data/model3,leaky_relu,0.01,"[256, 256]",True,17222.24,12459.81
