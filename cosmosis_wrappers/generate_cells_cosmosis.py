@@ -47,6 +47,15 @@ def generate_parameter_ini(omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
 		file.write(f'wa = {wa}')
 		file.write('\n')
 
+		file.write('\n')
+		file.write('[number_density_params]\n')
+		file.write('alpha = 1.3\n')
+		file.write('beta = 1.5\n')
+		file.write('z0 = 0.65\n')
+		file.write('sigz = 0.05\n')
+		file.write('ngal = 30\n')
+		file.write('bias = 0\n')
+
 def remove_additional_data(save_dir):
 	"""
 	Cosmosis outputs many folders with data
@@ -80,7 +89,7 @@ def remove_additional_data(save_dir):
 		os.system(f"rm -rf {save_dir}/matter_power_nl")
 		os.system(f"rm -rf {save_dir}/nz_sample")
 
-def write_cosmosis_file(save_dir):
+def write_cosmosis_file(save_dir,nbin,zmax,dz):
 	"""
 	Write the .ini file that is run with cosmosis to generate the params
 	"""
@@ -142,13 +151,16 @@ def write_cosmosis_file(save_dir):
 		file.write('file=cosmosis-standard-library/boltzmann/extrapolate/extrapolate_power.py\n')
 		file.write('kmax=500.0\n')
 		file.write('\n')
-		# loads in a file once at the start when setting up and supplies
-		# fixed data when executed.
-		file.write('[load_nz]\n')
-		file.write('file = cosmosis-standard-library/number_density/load_nz_fits/load_nz_fits.py\n')
-		file.write('nz_file = ${COSMOSIS_SRC_DIR}/cosmosis-standard-library/likelihood/cfhtlens/cfhtlens_heymans13.fits\n')
-		file.write('data_sets=SAMPLE\n')
-		file.write('\n')
+
+		# Load the number density from the Smail distribution
+		file.write(f"""[load_nz]
+file = cosmosis-standard-library/number_density/smail/photometric_smail.py
+nbin = {nbin}
+zmax = {zmax}
+dz = {dz}
+output_section=nz_sample ; This output section name is asked by shear-shear module
+""")
+
 		# This module uses the Limber approximation to compute shear-shear 
 		# C_ell given the shear kernel (which is derived from the number density
 		# and from geometry).
@@ -161,15 +173,21 @@ def write_cosmosis_file(save_dir):
 		file.write('verbose = F\n')
 
 
-def generate_cells(save_dir, omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
+def generate_cells(save_dir, nbin, zmax, dz, omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
 	,A_s=2.1e-9, omega_k=0.0, w=-1.0,wa=0.0):
+
+	# First make sure the save directory is empty
+	# Since the rm -rf function is so dangerous, check what we are removing first
+	if save_dir[:69] != '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/':
+		raise ValueError(f"Not going to remove files inside {save_dir}")
+	os.system(f"rm -rf {save_dir}")
 
 	# Generate the ini file with the parameters
 	generate_parameter_ini(omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
 	,A_s=2.1e-9, omega_k=0.0, w=-1.0,wa=0.0)
 
 	# Generate the ini file that will calculate everything with above parameters
-	write_cosmosis_file(save_dir)
+	write_cosmosis_file(save_dir, nbin, zmax, dz)
 
 	# Call cosmosis, calculate c_ells
 	os.system(f"cosmosis ./generate_cells.ini")
@@ -185,11 +203,13 @@ if __name__ == "__main__":
 	# Folder where data is saved
 	save_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test'
 
-	generate_cells(save_dir,omega_m=0.315)
+
+	nbin, zmax, dz = 3, 2.0, 0.002
+	generate_cells(save_dir, nbin, zmax, dz, omega_m=0.315)
 
 	# Folder that holds the shear_cls
 	data_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test/shear_cl'
-	plot_cosmosis_cells(data_dir, bins=6)
+	plot_cosmosis_cells(data_dir, bins=nbin)
 
 
 

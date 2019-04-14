@@ -9,7 +9,7 @@ def plot_cosmosis_cells(data_dir,bins):
 	# ells
 	ell = np.loadtxt(f'{data_dir}/ell.txt')
 	
-	fig = plt.figure(figsize=(12,12))
+	fig = plt.figure(figsize=(10,8))
 	for i in range(1,bins+1): # Cosmosis starts numbering at 1
 		for j in range(1,bins+1):
 			if i >= j: 
@@ -32,6 +32,7 @@ def plot_cosmosis_cells(data_dir,bins):
 					plt.xlabel(r'$\ell$')
 
 	plt.subplots_adjust(wspace = 0.4, hspace = 0.4)
+	plt.tight_layout()
 	plt.savefig('./TestFigures/somename.png')
 	# plt.show()
 	plt.close()
