@@ -3,8 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
-
 def plot_cosmosis_cells(data_dir,bins):
 	# ells
 	ell = np.loadtxt(f'{data_dir}/ell.txt')
@@ -37,9 +35,7 @@ def plot_cosmosis_cells(data_dir,bins):
 	plt.close()
 
 
-
 if __name__ == "__main__":
 
-	data_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test/shear_cl'
-	
+	data_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test/shear_cl'	
 	plot_cosmosis_cells(data_dir,bins=6)

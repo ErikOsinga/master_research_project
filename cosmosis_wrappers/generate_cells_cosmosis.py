@@ -8,7 +8,7 @@ from cl_plot import plot_cosmosis_cells
 Make sure the environment is activated with the command below 
 before running the script.
 
-source /net/reusel/data1/osinga/cosmosis_installation/cosmosis/setup-my-cosmosis'
+source /net/reusel/data1/osinga/cosmosis_installation/cosmosis/setup-my-cosmosis
 
 
 The generated c_ells are stored in the directory
@@ -17,8 +17,9 @@ The generated c_ells are stored in the directory
 Every time cosmosis is run, it creates a directory of about 6 MB with all the output data
 """
 
-def generate_parameter_ini(omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
-	,A_s=2.1e-9, omega_k=0.0, w=-1.0,wa=0.0):
+def generate_parameter_ini(omega_m, h0, omega_b, tau, n_s
+	,alpha, beta, z0, sigz, ngal, bias
+	,A_s, omega_k, w, wa):
 	"""
 	Create .ini file containing the parameters
 	"""
@@ -49,12 +50,12 @@ def generate_parameter_ini(omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
 
 		file.write('\n')
 		file.write('[number_density_params]\n')
-		file.write('alpha = 1.3\n')
-		file.write('beta = 1.5\n')
-		file.write('z0 = 0.65\n')
-		file.write('sigz = 0.05\n')
-		file.write('ngal = 30\n')
-		file.write('bias = 0\n')
+		file.write(f'alpha = {alpha}\n')
+		file.write(f'beta = {beta}\n')
+		file.write(f'z0 = {z0}\n')
+		file.write(f'sigz = {sigz}\n')
+		file.write(f'ngal = {ngal}\n')
+		file.write(f'bias = {bias}\n')
 
 def remove_additional_data(save_dir):
 	"""
@@ -174,8 +175,16 @@ output_section=nz_sample ; This output section name is asked by shear-shear modu
 
 
 def generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell, omega_m
+	, alpha=1.3, beta=1.5, z0=0.65, sigz=0.05, ngal=30, bias=0 # redshift params, default Euclid
 	, h0=0.72, omega_b=0.04, tau=0.08, n_s=0.96
 	, A_s=2.1e-9, omega_k=0.0, w=-1.0, wa=0.0):
+	
+	"""
+	Generate weak lensing Cls using cosmosis with the given parameters
+	C_ells are saved into save_dir
+	
+	"""
+
 
 	# First make sure the save directory is empty
 	# Since the rm -rf function is so dangerous, check what we are removing first
@@ -184,8 +193,9 @@ def generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell, omega_m
 	os.system(f"rm -rf {save_dir}")
 
 	# Generate the ini file with the parameters
-	generate_parameter_ini(omega_m, h0=0.72, omega_b=0.04, tau=0.08,n_s=0.96
-	,A_s=2.1e-9, omega_k=0.0, w=-1.0,wa=0.0)
+	generate_parameter_ini(omega_m, h0=h0, omega_b=omega_b, tau=tau,n_s=n_s
+	,alpha=alpha, beta=beta, z0=z0, sigz=sigz, ngal=ngal, bias=bias
+	,A_s=A_s, omega_k=omega_k, w=w,wa=wa)
 
 	# Generate the ini file that will calculate everything with above parameters
 	write_cosmosis_file(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell)
@@ -231,3 +241,4 @@ if __name__ == "__main__":
 	data_dir = f'{save_dir}/shear_cl'
 	plot_cosmosis_cells(data_dir, bins=nbin)
 
+	ells, c_ells = load_cells(save_dir, nbin)
