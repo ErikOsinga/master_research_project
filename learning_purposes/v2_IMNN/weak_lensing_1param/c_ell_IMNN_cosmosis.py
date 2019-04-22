@@ -133,6 +133,7 @@ class nholder(object):
         self.network = network
         self.rescale = rescale
         self.load_network = load_network
+        self.save_dir = save_dir
 
         print (f"Network version {version}")
 
@@ -142,7 +143,8 @@ class nholder(object):
             self.data = self.create_data()
 
         # # Theoretical Cl with no noise, looks like upper/lower but with +/- 0
-        self.Cl_noiseless = generate_data([theta_fid], train=[0], noiseless_deriv=True)[0]
+        self.Cl_noiseless = generate_data([theta_fid], {"train":[0], "noiseless_deriv":True,
+                "flatten":self.flatten, "preload":False, "save_dir":self.save_dir+"/temp" })[0]
         # shape (1,100) for 1 tomographic bin
 
         # Covariance from theoretical Cl
@@ -152,7 +154,7 @@ class nholder(object):
         self.Cl_noiseless = self.Cl_noiseless[0] # remove redundant dimension afterwards
 
         # generate cross power spectra Cl
-        # Cls, dNdzs = euclid_ccl(Omega_M)
+        # Cls, dNdzs = cosmosis_cells(Omega_M)
 
         # Make parameters dictionary of params that are always the same or defined
         # by other parameters   
@@ -236,24 +238,35 @@ class nholder(object):
         seed = np.random.randint(1e6) 
         # We should double-check to see if the sample variance if being surpressed
 
+
+        simulator_args = {"train":-self.delta_theta, "flatten":self.flatten,
+                        "noiseless_deriv":self.noiseless_deriv, "preload":False,
+        "save_dir":save_dir+f"/OmegaM{(self.theta_fid-self.delta_theta)[0]}"
+        }
         # Perturb lower 
         np.random.seed(seed)
         t_m = self.generate_data(np.array([self.theta_fid for i in 
                     range(self.n_train * self.n_p)])
-                    ,train = -self.delta_theta, flatten = self.flatten
-                    ,noiseless_deriv = self.noiseless_deriv) 
+                    ,simulator_args) 
         # Perturb higher 
+        simulator_args = {"train":self.delta_theta, "flatten":self.flatten,
+                        "noiseless_deriv":self.noiseless_deriv, "preload":False,
+        "save_dir":save_dir+f"/OmegaM{(self.theta_fid+self.delta_theta)[0]}"
+        }
         np.random.seed(seed)
         t_p = self.generate_data(np.array([theta_fid for i in 
                     range(self.n_train * self.n_p)])
-                    ,train = self.delta_theta, flatten = self.flatten
-                    , noiseless_deriv = self.noiseless_deriv)
+                    ,simulator_args)
 
         # Central
+        simulator_args = {"train":None, "flatten":self.flatten,
+                        "noiseless_deriv":self.noiseless_deriv, "preload":False,
+        "save_dir":save_dir+f"/OmegaM{self.theta_fid[0]}"
+        }
         np.random.seed(seed)
         t = self.generate_data(np.array([self.theta_fid for i in 
                     range(self.n_train * self.n_s)])
-                    ,train = None, flatten = self.flatten)
+                    ,simulator_args)
 
 
         if self.rescale: # take -1*log
@@ -288,22 +301,32 @@ class nholder(object):
 
         seed = np.random.randint(1e6)
         # Perturb lower 
+        simulator_args = {"train":-self.delta_theta, "flatten":self.flatten,
+                        "noiseless_deriv":self.noiseless_deriv, "preload":False,
+        "save_dir":save_dir+f"/OmegaM{(self.theta_fid-self.delta_theta)[0]}"
+        }
         np.random.seed(seed)
         tt_m = self.generate_data(np.array([self.theta_fid for i in 
                     range(self.n_train * self.n_p)])
-                    , train = -self.delta_theta, flatten = self.flatten
-                    , noiseless_deriv = self.noiseless_deriv)
+                    ,simulator_args)
         # Perturb higher 
+        simulator_args = {"train":self.delta_theta, "flatten":self.flatten,
+                        "noiseless_deriv":self.noiseless_deriv, "preload":False,
+        "save_dir":save_dir+f"/OmegaM{(self.theta_fid+self.delta_theta)[0]}"
+        }
         np.random.seed(seed)
         tt_p = self.generate_data(np.array([self.theta_fid for i in 
                     range(self.n_train * self.n_p)])
-                    , train = self.delta_theta, flatten = self.flatten
-                    , noiseless_deriv = self.noiseless_deriv)
+                    ,simulator_args)
         # Central sim
+        simulator_args = {"train":None, "flatten":self.flatten,
+                        "noiseless_deriv":self.noiseless_deriv, "preload":False,
+        "save_dir":save_dir+f"/OmegaM{self.theta_fid[0]}"
+        }
         np.random.seed(seed)
         tt = self.generate_data(np.array([self.theta_fid for i in 
                     range(self.n_train * self.n_s)])
-                    , train = None, flatten = self.flatten)
+                    ,simulator_args)
         
         # np.random.seed()
         if self.rescale: # take -1*log
@@ -339,20 +362,20 @@ class nholder(object):
         Omega_M = self.theta_fid[0]
 
         # generate cross power spectra Cl
-        Cls, dNdzs = euclid_ccl(Omega_M)
+        Cls = self.Cl_noiseless
 
-        # Calculate the covariance for every ell
-        covariance = calculate_covariance(Cls)
+        # covariance for every ell
+        covariance = self.covariance
 
         fig, ax = plt.subplots()
         # for the legend indicating the bin
-        ax.plot(ells[0], ells[0]*(ells[0]+1)*Cls[0][0]
+        ax.plot(ells[0], ells[0]*(ells[0]+1)*Cls[0]
             ,color='white',label=f'0,0')
         ax.legend(frameon=False,loc='upper left')
         
         # Plot the standard deviation as error bars
         onesigma = np.sqrt(covariance)
-        ax.errorbar(ells, ells*(ells+1)*Cls[0], yerr=ells*(ells+1)*onesigma,fmt='-',lw=1)
+        ax.errorbar(ells, ells*(ells+1)*Cls, yerr=ells*(ells+1)*onesigma,fmt='-',lw=1)
 
         ax.set_yscale('log')
         ax.set_xscale('log')
@@ -1099,7 +1122,7 @@ class nholder(object):
         Omega_M = self.theta_fid[0] # Fiducial param
         domega = 0.001
         # Calculate the noiseless Cl just above the fidicual param
-        Cls_t, _ = euclid_ccl(Omega_M = Omega_M+domega)
+        Cls_t = cosmosis_cells(Omega_M = Omega_M+domega)
         # Numerical derivative, give Cl noiseless its redundant axis back
         deriv_OM = (Cls_t - self.Cl_noiseless[np.newaxis, :]) / domega
 
@@ -1402,12 +1425,7 @@ def cosmosis_cells(Omega_M, save_dir):
     # Calculate Cls with cosmosis
     generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell
         , alpha=alpha, beta=beta, z0=z0, sigz=sigz, ngal=ngal, bias=bias
-        , omega_m=Omega_M)
-
-    def generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell, omega_m
-    , alpha=1.3, beta=1.5, z0=0.65, sigz=0.05, ngal=30, bias=0 # redshift params, default Euclid
-    , h0=0.72, omega_b=0.04, tau=0.08, n_s=0.96
-    , A_s=2.1e-9, omega_k=0.0, w=-1.0, wa=0.0):
+        , omega_m=Omega_M, h0=h,omega_b=Omega_b, n_s=n_s, A_s=A_s,w=w0)
 
     # Load calculated Cls from file
     ells, Cls = load_cells(save_dir, nbin)
@@ -1514,7 +1532,7 @@ def generate_test_train_Cls(Omega_M, sigma8):
     raise ValueError("TODO later")
 
     # a noise-free version of Cl 
-    Cls, dNdzs = euclid_ccl(Omega_M, sigma8)
+    Cls = cosmosis_cells(Omega_M, sigma8)
         
     # The covariance for every ell for this Cl
     covariance = calculate_covariance(Cls)
@@ -1522,16 +1540,21 @@ def generate_test_train_Cls(Omega_M, sigma8):
     return Cls_original, covariance
 
 
-def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=True):
+def generate_data(θ, simulator_args=None):
     """
     Holder function for the generation of the Cls
     
     θ = vector of lists of [Omega_M]'s to produce a Cl for
-    train = either None or an array of [delta_theta1,delta_theta2] for generating
-            the upper and lower derivatives
-    preload = True / False, True if we can load the data from disk
-    noiseless_deriv = True/False, whether to add noise to the upper/lower simulations
-                        NOTE THAT THE RANDOM SEED SHOULD BE SET IF WE WANT TO ADD NOISE TO THESE
+    
+    simulator_args:
+    Dictionary containing keyword arguments:
+        train = either None or an array of [delta_theta1,delta_theta2] for generating
+                the upper and lower derivatives
+        flatten -- not used with only 1 param, default is flatten
+        preload = True / False, True if we can load the data from disk
+        noiseless_deriv = True/False, whether to add noise to the upper/lower simulations
+            NOTE THAT THE RANDOM SEED SHOULD BE SET IF WE WANT TO ADD NOISE TO THESE
+        save_dir -- where to save the data generated by cosmosis
 
 
     Returns the weak lensing data vector flattened to use as input for the IMNN
@@ -1539,6 +1562,22 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
     """
     θ = np.asarray(θ)
     # print ('Shape',θ.shape)
+
+    if simulator_args is None:
+        # Default values
+        simulator_args = dict()
+        simulator_args["train"] = None
+        # simulator_args["flatten"] = False # Not used with 1 param
+        simulator_args["preload"] = False
+        simulator_args["noiseless_deriv"] = False
+        # Default in this directory, overwritten every time
+        simulator_args["save_dir"] = "/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test"
+
+    train = simulator_args["train"]
+    preload = simulator_args["preload"]
+    noiseless_deriv = simulator_args["noiseless_deriv"]
+    save_dir = simulator_args["save_dir"]
+
 
     if preload:
         raise ValueError("todo: divide between train/test data so they are not identical")
@@ -1564,7 +1603,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
                 print ('File not found')
 
 
-    def helper_func(θ):
+    def helper_func(θ, save_dir):
         """
         Generates noisy simulations at θ = vector of lists of [Omega_M]'s
         Called once if train = None, called twice if not
@@ -1574,7 +1613,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
             print (f"List of parameters contains all the same parameters, Omega_M={Omega_M}")
             
             # generate cross power spectra Cl
-            Cls = cosmosis_cells(Omega_M)
+            Cls = cosmosis_cells(Omega_M, save_dir)
 
             # Calculate the covariance for every ell, have to do this before flattening
             covariance = calculate_covariance(Cls)
@@ -1612,7 +1651,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
                 # print (Omega_M)
                 # Can in theory be done in parallel for all different Omega_M's
 
-                Cls, dNdzs = cosmosis_cells(Omega_M)
+                Cls = cosmosis_cells(Omega_M, save_dir)
 
                 # Calculate the covariance for every ell, have to do this before flattening
                 covariance = calculate_covariance(Cls)
@@ -1636,7 +1675,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
         θ_first_param = θ + perturb_param1
 
         # the upper/lower of the first parameter
-        all_Cls_first_param = helper_func(θ_first_param)
+        all_Cls_first_param = helper_func(θ_first_param, save_dir + "_d1")
 
         # Return it as an array of shape (num_sim,num_params,length_vector)
         all_Cls_first_param = all_Cls_first_param.reshape(
@@ -1648,140 +1687,7 @@ def generate_data(θ, train=None, flatten=False, preload=False, noiseless_deriv=
         return all_Cls # shape (num_simulations, num_params, ncombinations*len(ells)
 
     else: # generate simulations at value
-        return helper_func(θ)
-
-
-def generate_data_no_interp(θ, seed, simulator_args, 
-    train=None, flatten=False, preload=False, noiseless_deriv=True):
-    """
-    Holder function for the generation of the Cls for the ABC function
-    
-    θ = vector of lists of [Omega_M]'s to produce a Cl for
-    train = either None or an array of [delta_theta1,delta_theta2] for generating
-            the upper and lower derivatives
-    preload = True / False, True if we can load the data from disk
-    noiseless_deriv = True/False, whether to add noise to the upper/lower simulations
-                        NOTE THAT THE RANDOM SEED SHOULD BE SET IF WE WANT TO ADD NOISE TO THESE
-
-
-    Returns the weak lensing data vector flattened to use as input for the IMNN
-            shape (num_simulations=len(θ), length of Cl vector)
-    """
-    θ = np.asarray(θ)
-    # print ('Shape',θ.shape)
-
-    if preload:
-        raise ValueError("todo: divide between train/test data so they are not identical")
-
-    if preload and (θ[:,0] == θ[0,0]).all():
-        if train is not None:
-            perturb_param1 = np.array([train[0]])
-            θ_first_param = θ[0,0] + perturb_param1
-            print (f"Checking disk for saved data with Omega_M = {θ_first_param}")
-            try:
-                all_Cls = np.load(f'./preloaded_data/Omega_M_{θ_first_param}')
-                return all_Cls
-            except FileNotFoundError:
-                print ('File not found.')
-
-        else:
-            Omega_M = θ[0,0]
-            print (f"Checking disk for saved data with Omega_M = {Omega_M}")
-            try:
-                all_Cls = np.load(f'./preloaded_data/Omega_M_{Omega_M}')
-                return all_Cls
-            except FileNotFoundError:
-                print ('File not found')
-
-
-    def helper_func(θ):
-        """
-        Generates noisy simulations at θ = vector of lists of [Omega_M]'s
-        Called once if train = None, called twice if not
-        """
-        if (θ[:,0] == θ[0,0]).all():
-            Omega_M = θ[0,0]
-            # print (f"List of parameters contains all the same parameters, Omega_M={Omega_M}")
-            
-            # generate cross power spectra Cl
-            Cls, dNdzs = euclid_ccl(Omega_M)
-
-            # Calculate the covariance for every ell, have to do this before flattening
-            covariance = calculate_covariance(Cls)
-
-            # Cls are returned as array (ncombinations,100), if ncombinations=1, we must flatten it
-            Cls = Cls.flatten() # to get rid of the redundant dimension
-
-            # to keep a noise-free version of Cl as well
-            Cls_original = np.copy(Cls)
-
-            # For every item in the list of coordinates, perturb the original Cl with
-            # a 1D Gaussian with std=sqrt(covariance), save it as a list of (flattened) simulations 
-            if train is None:
-                all_Cls = []
-                for i in range(len(θ)): # can be done in parallel for all i 
-                    Cls = add_variance(Cls_original, covariance)
-                    all_Cls.append(Cls.flatten())
-            
-            else: 
-                if noiseless_deriv:
-                    # if it is for calculating derivatives, just use the noise free version 
-                    all_Cls = [Cls_original for i in range(len(θ))]
-                else:
-                    all_Cls = []
-                    for i in range(len(θ)):
-                        Cls = add_variance(Cls_original, covariance)
-                        all_Cls.append(Cls.flatten())
-        
-        # TODO // Think about how to generate multiple at once
-        # Omega_M, sigma8 = θ,  not possible if they are different params
-        else: # generate the simulations one by one...
-            print ("List of parameters does not contain all the same parameters. Slow.")
-            all_Cls = []        
-            for Omega_M in tqdm.tqdm(θ[:,0]): # Just one parameter
-                # Can in theory be done in parallel for all different Omega_M's
-
-                Cls, dNdzs = euclid_ccl(Omega_M)
-
-                # Calculate the covariance for every ell, have to do this before flattening
-                covariance = calculate_covariance(Cls)
-
-                # Cls are returned as array (ncombinations,100), if ncombinations=1, we must flatten it
-                Cls = Cls.flatten() # to get rid of the redundant dimension
-
-                # Perturb the original Cl with
-                # a 1D Gaussian with std=sqrt(covariance)
-                Cls = add_variance(Cls, covariance)
-
-                all_Cls.append(Cls.flatten()) # flatten the Cl data
-
-        # if not preload: np.save(f'./preloaded_data/Omega_M_{Omega_M}', np.asarray(all_Cls))
-        if nholder1.rescaled:
-            # print ("Rescaling the data (hopefully) same as the network")
-            all_Cls = -1 * np.log(all_Cls) 
-            np.nan_to_num(all_Cls,copy=False)
-
-        return np.asarray(all_Cls) # shape (num_simulations, ncombinations*len(ells))
-
-    if train is not None: # generate derivatives, with perturbed thetas, noise free
-        
-        perturb_param1 = np.array([train[0]])
-        θ_first_param = θ + perturb_param1
-
-        # the upper/lower of the first parameter
-        all_Cls_first_param = helper_func(θ_first_param)
-
-        # Return it as an array of shape (num_sim,num_params,length_vector)
-        all_Cls_first_param = all_Cls_first_param.reshape(
-                                        len(θ),1,all_Cls_first_param.shape[1])
-        all_Cls = all_Cls_first_param
-
-        # if not preload: np.save(f'./preloaded_data/Omega_M_{θ_first_param[0,0]}', all_Cls)
-
-        return all_Cls # shape (num_simulations, num_params, ncombinations*len(ells)
-
-    else: # generate simulations at value
-        return helper_func(θ)
+        return helper_func(θ, save_dir)
 
 def generate_data_ABC(theta, seed, simulator_args, train=False):
     '''
@@ -1934,7 +1840,7 @@ nzs = euclid_nzs(num_dens)
 # IMNN PARAMETERS 
 #########################################
 # The input shape is a 1D vector of length 1*len(ells) (100 most of the time in this case)
-input_shape = [ncombinations*len(ells)] 
+input_shape = [ncombinations*n_ell] 
 
 theta_fid = np.array([0.315]) # Omega_M 
 
@@ -1951,7 +1857,7 @@ derivative_fraction = 1.0 # fraction of n_s
 derivative_fraction_val = 0.2 # fraction of n_s
 
 eta = 1e-3 # learning rate
-num_epochs = int(10) 
+num_epochs = int(1e3) 
 keep_rate = 1.0 # 1 minus the dropout
 verbose = 0
 
@@ -1968,7 +1874,7 @@ noiseless_deriv = False # whether to not add noise to upper/lower simulations
 flatten = False # data is already flat, don't have to flatten it again
 rescale = True # wheter to take the negative log of the data
 
-initial_version = int(sys.argv[1])
+initial_version = 1000
 
 # For building the network, and defining number of summaries
 n_summaries = 1
@@ -2051,7 +1957,9 @@ nholder1.plot_variables(n,show=False,diagnostics=diagnostics)
 
 # Generate actual data 
 # np.random.seed(113823) # for reproducibility of the "real data"
-real_data = generate_data(np.array([theta_fid]), train = None, flatten=flatten)
+real_data = generate_data(np.array([theta_fid]), {"train":None, "flatten":flatten,
+    "noiseless_deriv":noiseless_deriv, "preload":False, "save_dir":save_dir+f"/real_data"})
+
 if nholder1.rescaled:
     print ("Rescaling the real data (hopefully) same as the network. Check this")
     real_data = -1 * np.log(real_data)
@@ -2059,8 +1967,10 @@ if nholder1.rescaled:
 # print ('Means of the "real data" generated at fiducial parameters')
 # print (np.mean(real_data.reshape(input_shape),axis=0))
 
+sys.exit("Exit before ABC")
+
 # Generate numerical derivative, needed for the generate_data_ABC() func
-deriv_Oc = nholder1.calc_derivative_Omega_M()
+# deriv_Oc = nholder1.calc_derivative_Omega_M()
 
 # # Perform ABC
 # A Gaussian prior with mean 0.30, variance 0.01, truncated at 0.1 and 0.6
