@@ -17,13 +17,13 @@ The generated c_ells are stored in the directory
 Every time cosmosis is run, it creates a directory of about 6 MB with all the output data
 """
 
-def generate_parameter_ini(omega_m, h0, omega_b, tau, n_s
+def generate_parameter_ini(save_dir, omega_m, h0, omega_b, tau, n_s
 	,alpha, beta, z0, sigz, ngal, bias
 	,A_s, omega_k, w, wa):
 	"""
 	Create .ini file containing the parameters
 	"""
-	with open('./params.ini','w') as file:
+	with open(f'{save_dir}/params.ini','w') as file:
 		# Parameters and data in CosmoSIS are organized into sections
 		# so we can easily see what they mean.
 		# There is only one section in this case, called cosmological_parameters
@@ -94,7 +94,7 @@ def write_cosmosis_file(save_dir,nbin,zmax,dz,ell_min,ell_max,n_ell):
 	"""
 	Write the .ini file that is run with cosmosis to generate the params
 	"""
-	with open('./generate_cells.ini','w') as file:
+	with open(f'{save_dir}/generate_cells.ini','w') as file:
 		# Parameters and data in CosmoSIS are organized into sections
 		# so we can easily see what they mean.
 		file.write('[runtime]\n')
@@ -115,7 +115,7 @@ def write_cosmosis_file(save_dir,nbin,zmax,dz,ell_min,ell_max,n_ell):
 		# The list of modules to be run, in this order.  
 		# The modules named here must appear as sections below.
 		file.write('modules = consistency camb halofit extrapolate_power load_nz  shear_shear\n')
-		file.write('values = ./params.ini\n') # the param file created earlier
+		file.write(f'values = {save_dir}/params.ini\n') # the param file created earlier
 		file.write('\n')
 
 		# We can get a little more output during the run by setting some values.
@@ -177,7 +177,7 @@ output_section=nz_sample ; This output section name is asked by shear-shear modu
 def generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell, omega_m
 	, alpha=1.3, beta=1.5, z0=0.65, sigz=0.05, ngal=30, bias=0 # redshift params, default Euclid
 	, h0=0.72, omega_b=0.04, tau=0.08, n_s=0.96
-	, A_s=2.1e-9, omega_k=0.0, w=-1.0, wa=0.0):
+	, A_s=2.1e-9, omega_k=0.0, w=-1.0, wa=0.0, mpi=False):
 	
 	"""
 	Generate weak lensing Cls using cosmosis with the given parameters
@@ -190,10 +190,15 @@ def generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell, omega_m
 	# Since the rm -rf function is so dangerous, check what we are removing first
 	if save_dir[:69] != '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/':
 		raise ValueError(f"Not going to remove files inside {save_dir}")
-	os.system(f"rm -rf {save_dir}")
+	print (f"Removing files inside {save_dir}/")
+	os.system(f"rm -rf {save_dir}/")
+
+	if not os.path.isdir(save_dir):
+		print (f"Creating directory {save_dir} for cosmosis")
+		os.mkdir(save_dir)
 
 	# Generate the ini file with the parameters
-	generate_parameter_ini(omega_m, h0=h0, omega_b=omega_b, tau=tau,n_s=n_s
+	generate_parameter_ini(save_dir, omega_m, h0=h0, omega_b=omega_b, tau=tau,n_s=n_s
 	,alpha=alpha, beta=beta, z0=z0, sigz=sigz, ngal=ngal, bias=bias
 	,A_s=A_s, omega_k=omega_k, w=w,wa=wa)
 
@@ -201,7 +206,11 @@ def generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell, omega_m
 	write_cosmosis_file(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell)
 
 	# Call cosmosis, calculate c_ells
-	os.system(f"cosmosis ./generate_cells.ini")
+	if mpi:
+		# Test sampler does not support mpi
+		os.system(f"mpirun -n 4 cosmosis --mpi {save_dir}/generate_cells.ini")
+	else:
+		os.system(f"cosmosis {save_dir}/generate_cells.ini")
 
 	# Remove matter power spectra and cmb data etc.
 	remove_additional_data(save_dir)
@@ -230,12 +239,32 @@ def load_cells(save_dir,nbin):
 
 if __name__ == "__main__":
 	# Folder where data is saved
-	save_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test'
+	save_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test2'
 
 	nbin, zmax, dz = 3, 2.0, 0.002
 	ell_min, ell_max, n_ell = 50, 3000, 200
+
+
+	Omega_M = 0.315
+	Omega_b_fraction = 0.15653724 # fraction of Omega_M
+	
+	A_s = 2.1e-9
+	Omega_b = Omega_b_fraction * Omega_M
+	h = 0.674
+	n_s = 0.965
+	w0 = -1.03
+
+	alpha=1.3
+	beta=1.5
+	z0=0.65
+	sigz=0.05
+	ngal=30
+	bias=0 
+
+	# Calculate Cls with cosmosis
 	generate_cells(save_dir, nbin, zmax, dz, ell_min, ell_max, n_ell
-		, omega_m=0.315)
+		, alpha=alpha, beta=beta, z0=z0, sigz=sigz, ngal=ngal, bias=bias
+		, omega_m=Omega_M, h0=h,omega_b=Omega_b, n_s=n_s, A_s=A_s,w=w0)
 
 	# Folder that holds the shear_cls
 	data_dir = f'{save_dir}/shear_cl'

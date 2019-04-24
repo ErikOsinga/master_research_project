@@ -37,5 +37,5 @@ def plot_cosmosis_cells(data_dir,bins):
 
 if __name__ == "__main__":
 
-	data_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/generate_cells_test/shear_cl'	
-	plot_cosmosis_cells(data_dir,bins=6)
+	data_dir = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/frankenemu_test/shear_cl'	
+	plot_cosmosis_cells(data_dir,bins=3)
