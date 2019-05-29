@@ -1056,17 +1056,17 @@ class nholder(object):
 
     def save_data_to_disk(self, name):
         """
-        Save current train/test data to disk. In the directory ./preloaded_data/
+        Save current train/test data to disk. In the directory ./preloaded_data_sigma8/
 
         See also load_data_from_disk
 
         """
         for key in tqdm.tqdm(self.data.keys(),desc="Saving data"):
-            np.save(f'./preloaded_data/{name}_{key}.npy', self.data[key])
+            np.save(f'./preloaded_data_sigma8/{name}_{key}.npy', self.data[key])
 
     def load_data_from_disk(self, name):
         """
-        Load data from disk. Looks in the directory ./preloaded_data/
+        Load data from disk. Looks in the directory ./preloaded_data_sigma8/
 
         See also load_data_from_disk
 
@@ -1074,7 +1074,7 @@ class nholder(object):
         data = dict()
         for key in tqdm.tqdm(['data', 'data_d', 'x_m', 'x_p', 'validation_data'
                             , 'validation_data_d', 'x_m_test', 'x_p_test'],desc="Loading data from disk"):
-            data[key] = np.load(f'./preloaded_data/{name}_{key}.npy')
+            data[key] = np.load(f'./preloaded_data_sigma8/{name}_{key}.npy')
 
         return data
 
@@ -1873,7 +1873,7 @@ def generate_data(θ, seed=None, simulator_args=None):
             θ_first_param = θ[0,0] + perturb_param1
             print (f"Checking disk for saved data with Omega_M = {θ_first_param}")
             try:
-                all_Cls = np.load(f'./preloaded_data/Omega_M_{θ_first_param}')
+                all_Cls = np.load(f'./preloaded_data_sigma8/Omega_M_{θ_first_param}')
                 return all_Cls
             except FileNotFoundError:
                 print ('File not found.')
@@ -1882,7 +1882,7 @@ def generate_data(θ, seed=None, simulator_args=None):
             Omega_M = θ[0,0]
             print (f"Checking disk for saved data with Omega_M = {Omega_M}")
             try:
-                all_Cls = np.load(f'./preloaded_data/Omega_M_{Omega_M}')
+                all_Cls = np.load(f'./preloaded_data_sigma8/Omega_M_{Omega_M}')
                 return all_Cls
             except FileNotFoundError:
                 print ('File not found')
@@ -1955,7 +1955,7 @@ def generate_data(θ, seed=None, simulator_args=None):
 
                 all_Cls.append(Cls.flatten()) # flatten the Cl data
 
-        # if not preload: np.save(f'./preloaded_data/Omega_M_{Omega_M}', np.asarray(all_Cls))
+        # if not preload: np.save(f'./preloaded_data_sigma8/Omega_M_{Omega_M}', np.asarray(all_Cls))
 
         return np.asarray(all_Cls) # shape (num_simulations, ncombinations*len(ells))
 
@@ -1980,7 +1980,7 @@ def generate_data(θ, seed=None, simulator_args=None):
                                         len(θ),1,all_Cls_second_param.shape[1])
         all_Cls = np.concatenate([all_Cls_first_param,all_Cls_second_param],axis=1) 
 
-        # if not preload: np.save(f'./preloaded_data/Omega_M_{θ_first_param[0,0]}_Sigma8_{θ_second_param}'
+        # if not preload: np.save(f'./preloaded_data_sigma8/Omega_M_{θ_first_param[0,0]}_Sigma8_{θ_second_param}'
         #                        , all_Cls)
 
         return all_Cls # shape (num_simulations, num_params, ncombinations*len(ells)
@@ -2144,7 +2144,7 @@ keep_rate = 1.0 # 1 minus the dropout
 verbose = 0
 
 fromdisk = False #
-savedata = True # save data under ./preloaded_data/data{modelversion}
+savedata = True # save data under ./preloaded_data_sigma8/data{modelversion}
 
 # MLP
 # hidden_layers = [1024, 512, 256, 128, 128]
@@ -2289,7 +2289,7 @@ def checkNaNs():
 
 def save_ABC_results(nholder, abc): 
     for key in abc.keys():
-        np.save(f'./preloaded_data/ABC_results/abc{nholder.modelversion}{key}',abc[key])
+        np.save(f'./preloaded_data_sigma8/ABC_results/abc{nholder.modelversion}{key}',abc[key])
 
 
 
