@@ -6,36 +6,32 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 # change to the path where the IMNN git clone is located
 # new version of IMNN by Tom
-sys.path.insert(-1,'../../../../../IMNNv2/IMNN/')
+sys.path.insert(-1,'../../../../../../IMNNv2/IMNN/')
 import IMNN.IMNN as IMNN # make sure the path to the IMNN is given
 import IMNN.ABC.ABC as ABC
 import IMNN.ABC.priors as priors
 
-sys.path.append('../../../../cosmosis_wrappers/') # change to correct path
+sys.path.append('../../../../../cosmosis_wrappers/') # change to correct path
 from generate_cells_cosmosis import generate_cells, load_cells
 import ABC_saved_sims_multiparam
 
 import tqdm
-sys.path.insert(-1,'../../../../') # change to path where utils_mrp is located
+sys.path.insert(-1,'../../../../../') # change to path where utils_mrp is located
 import utils_mrp_v2 as utils_mrp
 import set_plot_sizes # set font sizes
-
-sys.path.append('../../../../latinhypercube/') # change to correct path
-import generate_hypercube
 
 # For making corner plots of the posterior
 import corner # Reference: https://github.com/dfm/corner.py/
 
+sys.path.append('../../../../../latinhypercube/') # change to correct path
+import generate_hypercube
 
 # for some reason pyccl doesnt work on eemmeer
 import pyccl as ccl # for generating weak lensing cross power spectra
 
 """
 Summarizing a weak lensing data vector. Generated with the pyccl module.
-The goal is to predict Omega_M and S8 for a Euclid-like survey.
-
-We switch to S8 to avoid a little more the degeneracy between Omega_m and S8
-S8 = sigma_8 \sqrt(Omega_m/0.3)
+The goal is to predict Omega_M and Sigma_8 for a Euclid-like survey.
 
 We assume a redshift distribution given by
     z^alpha * exp(z/z0)^beta
@@ -112,7 +108,7 @@ class nholder(object):
             self.input_shape = input_shape
 
         self.generate_data = generate_data
-        self.theta_fid = theta_fid # Omega_m, S8
+        self.theta_fid = theta_fid
         self.delta_theta = delta_theta
         self.n_s = n_s
         self.n_train = n_train
@@ -176,7 +172,7 @@ class nholder(object):
         self.modelloc = 'Models/' #location where the models (networks) are saved
         
         #the file in which the network settings will be saved
-        self.modelsettings_name = 'modelsettings_s8.csv' 
+        self.modelsettings_name = 'modelsettings.csv' 
 
         self.modelsettings = {'Version' : str(self.modelversion),
                         'Learning rate': str(self.eta),
@@ -400,7 +396,7 @@ class nholder(object):
                 if i == nbin-1 and j == 0:
                     ax.set_xlabel('$\ell$')
 
-        plt.suptitle("Determinitistic Cl with diagonal 1sigma error bars")
+        # plt.suptitle("Determinitistic Cl with diagonal 1sigma error bars")
         
         plt.tight_layout()
         plt.savefig(f'{self.figuredir}errorbars_{self.modelversion}.png')
@@ -560,7 +556,7 @@ class nholder(object):
 
         # Cls_p now has shape (num_params , 100) since it is 
         # for all params: the data vector for the upper training image 
-        labels =[r'$θ_1$ ($\Omega_M$)', r'$θ_2$ ($S8$)']
+        labels =[r'$θ_1$ ($\Omega_M$)', r'$θ_2$ ($\sigma8$)']
 
         # we loop over them in this plot to assign labels
         for i in range(Cls_p.shape[0]):
@@ -1062,17 +1058,17 @@ class nholder(object):
 
     def save_data_to_disk(self, name):
         """
-        Save current train/test data to disk. In the directory ./preloaded_data_s8/
+        Save current train/test data to disk. In the directory ./preloaded_data_sigma8/
 
         See also load_data_from_disk
 
         """
         for key in tqdm.tqdm(self.data.keys(),desc="Saving data"):
-            np.save(f'./preloaded_data_s8/{name}_{key}.npy', self.data[key])
+            np.save(f'./preloaded_data_sigma8/{name}_{key}.npy', self.data[key])
 
     def load_data_from_disk(self, name):
         """
-        Load data from disk. Looks in the directory ./preloaded_data_s8/
+        Load data from disk. Looks in the directory ./preloaded_data_sigma8/
 
         See also load_data_from_disk
 
@@ -1080,7 +1076,7 @@ class nholder(object):
         data = dict()
         for key in tqdm.tqdm(['data', 'data_d', 'x_m', 'x_p', 'validation_data'
                             , 'validation_data_d', 'x_m_test', 'x_p_test'],desc="Loading data from disk"):
-            data[key] = np.load(f'./preloaded_data_s8/{name}_{key}.npy')
+            data[key] = np.load(f'./preloaded_data_sigma8/{name}_{key}.npy')
 
         return data
 
@@ -1444,6 +1440,9 @@ class nholder(object):
         all_epsilon = abc.PMC(draws = draws, posterior = num_keep
             , criterion = criterion, at_once = True, save_sims = None, MLE = True) 
 
+        # Save results before we get some dumb plotting error
+        save_PMC_results(self, abc)
+
         # plot output samples and histogram of the accepted samples in 1D
         def plot_samples_oneD():
             fig, ax = plt.subplots(3, 2, sharex = 'col', figsize = (12, 12))
@@ -1495,11 +1494,11 @@ class nholder(object):
             # Then repeat the whole ordeal for the second parameter
             ##################### SECOND PARAMETER, RIGHT COLUMN ############
             # Plot the accepted/rejected samples
-            # Parameter 2: S8, first network output.
+            # Parameter 2: sigma8, first network output.
             ax[0,1].scatter(abc.PMC_dict["parameters"][:, 1]
                 , abc.PMC_dict["summaries"][:,0]
                 , s = 1, alpha = 1.0, label = "Accepted samples", color = "C0")
-            ax[0,1].axhline(abc.PMC_dict["summary"][0,0], color = 'black', linestyle = 'dashed', label = "Summary of observed data")
+            ax[0,1].axhline(abc.summary[0,0], color = 'black', linestyle = 'dashed', label = "Summary of observed data")
             # ax[0,1].legend(frameon=False)
             ax[0,1].set_ylabel('First network output', labelpad = 0)
             ax[0,1].set_xlim([prior["lower"][1], prior["upper"][1]])
@@ -1508,7 +1507,7 @@ class nholder(object):
             # second network output
             ax[1,1].scatter(abc.PMC_dict["parameters"][:, 1]
                 , abc.PMC_dict["summaries"][:, 1], s = 1, alpha = 1.0, label = "Accepted samples", color = "C0")
-            ax[1,1].axhline(abc.PMC_dict["summary"][0, 1], color = 'black', linestyle = 'dashed', label = "Summary of observed data")
+            ax[1,1].axhline(abc.summary[0, 1], color = 'black', linestyle = 'dashed', label = "Summary of observed data")
             # ax[1,1].legend(frameon=False)
             ax[1,1].set_ylabel('Second network output', labelpad = 0)
             ax[1,1].set_xlim([prior["lower"][1], prior["upper"][1]])
@@ -1568,7 +1567,7 @@ class nholder(object):
         """
 
         all_omega_m = np.random.uniform(prior["lower"][0],prior["upper"][0],size=draws)
-        all_S8 = np.random.uniform(prior["lower"][0],prior["upper"][0],size=draws)
+        all_sigma8 = np.random.uniform(prior["lower"][0],prior["upper"][0],size=draws)
 
         # for some reason this has to be run first to get the correct fisher info
         n.sess.run(n.get_compressor)
@@ -1580,7 +1579,7 @@ class nholder(object):
 
         all_theta = []
         for om in all_omega_m:
-            for s8 in all_S8:
+            for s8 in all_sigma8:
                 all_theta.append([om,s8])
 
         all_theta = np.array(all_theta)
@@ -1623,11 +1622,10 @@ class nholder(object):
 
 def cosmosis_cells(Omega_M, sigma8, save_dir):
     """
-    Generate C_ell as function of ell for a given Omega_M and sigma8
+    Generate C_ell as function of ell for a given Omega_M
 
     Inputs
         Omega_M -- float: Matter density 
-        sigma8  -- float: Amplitude of the linear power spectrum
         save_dir -- string: Directory where cosmosis will save the data
 
     Assumed global variables
@@ -1833,21 +1831,12 @@ def generate_test_train_Cls(Omega_M, sigma8):
 
     return Cls_original, covariance
 
-def unpack_S8(S8, Omega_M):
-    """
-    Given S8 and Omega_M, returns sigma_8
-
-    Can be arrays, will return an array
-    """
-    sigma_8 = S8/np.sqrt(Omega_M/0.3)
-
-    return sigma_8
 
 def generate_data(θ, seed=None, simulator_args=None):
     """
     Holder function for the generation of the Cls
     
-    θ = vector of lists of [Omega_M,S8]'s to produce a Cl for
+    θ = vector of lists of [Omega_M,sigma8]'s to produce a Cl for
     train = either None or an array of [delta_theta1,delta_theta2] for generating
             the upper and lower derivatives
     preload = True / False, True if we can load the data from disk
@@ -1889,7 +1878,7 @@ def generate_data(θ, seed=None, simulator_args=None):
             θ_first_param = θ[0,0] + perturb_param1
             print (f"Checking disk for saved data with Omega_M = {θ_first_param}")
             try:
-                all_Cls = np.load(f'./preloaded_data_s8/Omega_M_{θ_first_param}')
+                all_Cls = np.load(f'./preloaded_data_sigma8/Omega_M_{θ_first_param}')
                 return all_Cls
             except FileNotFoundError:
                 print ('File not found.')
@@ -1898,7 +1887,7 @@ def generate_data(θ, seed=None, simulator_args=None):
             Omega_M = θ[0,0]
             print (f"Checking disk for saved data with Omega_M = {Omega_M}")
             try:
-                all_Cls = np.load(f'./preloaded_data_s8/Omega_M_{Omega_M}')
+                all_Cls = np.load(f'./preloaded_data_sigma8/Omega_M_{Omega_M}')
                 return all_Cls
             except FileNotFoundError:
                 print ('File not found')
@@ -1906,14 +1895,12 @@ def generate_data(θ, seed=None, simulator_args=None):
 
     def helper_func(θ):
         """
-        Generates noisy simulations at θ = vector of lists of [Omega_M, S8]'s
+        Generates noisy simulations at θ = vector of lists of [Omega_M]'s
         Called once if train = None, called twice if not
         """
         if (θ[:,0] == θ[0,0]).all() and (θ[:,1] == θ[0,1]).all():
-            Omega_M, S8 = θ[0,0], θ[0,1]
-            print (f"List of parameters contains all the same parameters, O_M={Omega_M}, S8 = {S8}")
-            # Calculate sigma8 from S8 and Omega_M to do the simulations
-            sigma8 = unpack_S8(S8, Omega_M)
+            Omega_M, sigma8 = θ[0,0], θ[0,1]
+            print (f"List of parameters contains all the same parameters, O_M={Omega_M}, sigma8 = {sigma8}")
             
             # Something weird makes it so Omega_M is sometimes 0 in PMC, if that happens,
             # we return garbage, to make sure ABC/PMC knows that it is incorrect
@@ -1921,7 +1908,7 @@ def generate_data(θ, seed=None, simulator_args=None):
                 print (f"For some reason Omega_M = 0, we return garbage")
                 return np.ones( (len(θ),ncombinations*len(ells)) )*1e20 # shape (num_simulations, ncombinations*len(ells))
 
-            # generate cross power spectra Cl with Omega_m and sigma8
+            # generate cross power spectra Cl
             Cls = cosmosis_cells(Omega_M,sigma8, save_dir)
 
             # Calculate the covariance for every ell, have to do this before flattening
@@ -1952,13 +1939,8 @@ def generate_data(θ, seed=None, simulator_args=None):
         # Omega_M, sigma8 = θ,  not possible if they are different params
         else: # generate the simulations one by one...
             print ("List of parameters does not contain all the same parameters. Slow.")
-            all_Cls = []    
-            all_omega_m = θ[:,0]
-            all_S8 = θ[:,1]
-            # Unpack S8 to sigma8
-            all_sigma8 = unpack_S8(all_S8, all_omega_m)
-
-            for Omega_M, sigma8 in tqdm.tqdm(zip(all_omega_m,all_sigma8),desc="Generating one at a time"): 
+            all_Cls = []        
+            for Omega_M, sigma8 in tqdm.tqdm(θ,desc="Generating one at a time"): 
                 # Can in theory be done in parallel for all different params
                 
                 # Something weird makes it so Omega_M is sometimes 0 in PMC, if that happens,
@@ -1978,7 +1960,7 @@ def generate_data(θ, seed=None, simulator_args=None):
 
                 all_Cls.append(Cls.flatten()) # flatten the Cl data
 
-        # if not preload: np.save(f'./preloaded_data_s8/Omega_M_{Omega_M}', np.asarray(all_Cls))
+        # if not preload: np.save(f'./preloaded_data_sigma8/Omega_M_{Omega_M}', np.asarray(all_Cls))
 
         return np.asarray(all_Cls) # shape (num_simulations, ncombinations*len(ells))
 
@@ -2003,7 +1985,7 @@ def generate_data(θ, seed=None, simulator_args=None):
                                         len(θ),1,all_Cls_second_param.shape[1])
         all_Cls = np.concatenate([all_Cls_first_param,all_Cls_second_param],axis=1) 
 
-        # if not preload: np.save(f'./preloaded_data_s8/Omega_M_{θ_first_param[0,0]}_Sigma8_{θ_second_param}'
+        # if not preload: np.save(f'./preloaded_data_sigma8/Omega_M_{θ_first_param[0,0]}_Sigma8_{θ_second_param}'
         #                        , all_Cls)
 
         return all_Cls # shape (num_simulations, num_params, ncombinations*len(ells)
@@ -2099,8 +2081,8 @@ def build_dense_network(data, hidden_layers, **kwargs):
 # #######################################
 # COSMOSIS PARAMETERS 
 #########################################
-initial_version = 3 # Network parameter, the version of the network
-save_dir = f'/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/twoparam/3bins_s8_{initial_version}'
+initial_version = 5 # Network parameter, the version of the network
+save_dir = f'/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/twoparam/3bins{initial_version}'
 
 # nbin = number of tomographic bins
 nbin, zmax, dz = 3, 2.0, 0.002 # 1000 samples in redshift
@@ -2134,7 +2116,7 @@ dNdz_true = ccl.dNdzSmail(alpha = alpha, beta = beta, z0=z0)
 pz = ccl.PhotoZGaussian(sigma_z0=sigz)
 
 fsky = 15000/41252.96 # fraction of the sky observed by Euclid
-sn = 0.26 # shot noise
+sn = 0.26 
 num_dens = ngal * 3600 * (180/np.pi)**2# from arcmin^-2 to deg^-2 to sr
 nzs = euclid_nzs(num_dens) 
 
@@ -2147,10 +2129,10 @@ nzs = euclid_nzs(num_dens)
 # The input shape is a 2D vector of shape (nbin,len(ells))
 input_shape = [ncombinations,len(ells)] # But we flatten it later
 
-theta_fid = np.array([0.315,0.831]) # Omega_M, S8 (Derived from fiducial sigma_8 and Omega_m)
+theta_fid = np.array([0.315,0.811]) # Omega_M, sigma8
 
 # delta_theta = np.array([0.11]) # perturbation values
-delta_theta = np.array([0.02, 0.01])
+delta_theta = np.array([0.02, 0.02])
 
 n_s = 1000 # number of simulations used at a time to approximate the covariance 
 n_train = 5 # splits, for if it doesnt fit into memory
@@ -2162,12 +2144,12 @@ derivative_fraction = 1.0 # fraction of n_s
 derivative_fraction_val = 0.2 # fraction of n_s
 
 eta = 1e-3 # learning rate
-num_epochs = int(5e3) 
+num_epochs = int(1e3) 
 keep_rate = 1.0 # 1 minus the dropout
 verbose = 0
 
-fromdisk = False #
-savedata = True # save data under ./preloaded_data_s8/data{modelversion}
+fromdisk = True #
+savedata = True # save data under ./preloaded_data_sigma8/data{modelversion}
 
 # MLP
 # hidden_layers = [1024, 512, 256, 128, 128]
@@ -2271,7 +2253,6 @@ real_data = generate_data(np.array([theta_fid]), None, {"train":None, "flatten":
 if nholder1.rescaled:
     print ("Rescaling the real data (hopefully) same as the network. Check this")
     real_data = -1 * np.log(real_data)
-    np.nan_to_num(real_data,copy=False)
 
 # OLD: Generate numerical derivative, needed for the generate_data_ABC() func
 # OLD: deriv_Om = nholder1.calc_derivative_Omega_M()
@@ -2284,62 +2265,62 @@ prior = {'mean': np.array([0.30,0.805]),
          'upper': np.array([0.34,0.91]) 
          }
 
-sys.exit("Exit before ABC or generate hypercube")
-
-params = 2
-samples = 50
-criterion = 'maximin'
-# Uniform for Omega_m between 0.2 and 0.4
-# Uniform for S8 between 0.7 and 0.9
-dist = 'unif'
-scale = np.array([0.2, 0.7])
-loc = np.array([0.2, 0.2])
-
-# Generate the samples, array of shape (params,samples)
-theta_lhd = generate_hypercube.generate_LHS(params, samples, criterion, scale, loc)
-
-# Calculate hypercube data
-lhd_Cls = generate_data(theta_lhd)
-
-# Do not forget to rescale the data
-if nholder1.rescaled:
-    print ("Rescaling the real data (hopefully) same as the network. Check this")
-    lhd_Cls = -1 * np.log(lhd_Cls)
-    np.nan_to_num(lhd_Cls,copy=False)
-
-# Save them because that takes a lot of time to generate
-# The parameters
-np.save('./theta_lhd.npy',theta_lhd)
-# The Cells
-np.save('./lhd_Cls.npy', lhd_Cls)
-
-# Calculate the summaries
-summaries, realsummary = generate_hypercube.calculate_hypercube_summaries(nholder1, n, lhd_Cls, real_data)
-# Save the summaries
-np.save('./lhd_summaries.npy',summaries)
-np.save('./realsummary.npy',realsummary)
-
-# Plot the summaries
-generate_hypercube.plot_hypercube_summaries(theta_lhd, summaries, nholder1, theta_fid, realsummary, oneD=True, hbins=20, show=True)
-
-
-
-# ABC
 # draws = int(1e3)
 
-save_sims = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/twoparam/apriori/3bins_s8/ells1000'
-simnames = ['ap1']#,'ap2']
+# params = 2
+# samples = 50
+# criterion = 'maximin'
+# # Uniform for Omega_m between 0.2 and 0.4
+# # Uniform for S8 between 0.7 and 0.9
+# dist = 'unif'
+# scale = np.array([0.2, 0.7])
+# loc = np.array([0.2, 0.2])
+
+# # Generate the samples, array of shape (params,samples)
+# theta_lhd = generate_hypercube.generate_LHS(params, samples, criterion, scale, loc)
+
+# # Calculate hypercube data
+# lhd_Cls = generate_data(theta_lhd)
+
+# # Do not forget to rescale the data
+# if nholder1.rescaled:
+#     print ("Rescaling the real data (hopefully) same as the network. Check this")
+#     lhd_Cls = -1 * np.log(lhd_Cls)
+#     np.nan_to_num(lhd_Cls,copy=False)
+
+# # Save them because that takes a lot of time to generate
+# # The parameters
+# np.save('./theta_lhd.npy',theta_lhd)
+# # The Cells
+# np.save('./lhd_Cls.npy', lhd_Cls)
+
+# # Calculate the summaries
+# summaries, realsummary = generate_hypercube.calculate_hypercube_summaries(nholder1, n, lhd_Cls, real_data)
+# # Save the summaries
+# np.save('./lhd_summaries.npy',summaries)
+# np.save('./realsummary.npy',realsummary)
+# # Plot the summaries
+# generate_hypercube.plot_hypercube_summaries(theta_lhd, summaries, nholder1, theta_fid, realsummary, oneD=True, hbins=20, show=True)
+
+# sys.exit("Exit before ABC/PMC or stuff")
+
+
+
+
+save_sims = '/net/reusel/data1/osinga/master_research_project/saved_data/cosmosis/twoparam/apriori/3bins/ells1000'
+simnames = ['ap1']
 draws = int(10e3) # must correspond to number of sims in simnames
 
-# loadparams = ['omega_m', 'sigma_8']
-# # Perform ABC with saved simulations
-# abc = ABC_saved_sims_multiparam.ABC_saved(nholder1, n, save_sims, simnames, real_data, nbin
-#                 , sn, nzs, ells, loadparams
-#                 , at_once=True, draws=draws, MLE=True, notebook=False, rescale=rescale)
-# # plot the results
-# ABC_saved_sims_multiparam.plot_ABC_2params(abc, nholder1, theta_fid, prior, oneD='both', hbins=30, epsilon=None,show=False)
+loadparams = ['omega_m', 'sigma_8']
+# Perform ABC with saved simulations
+abc = ABC_saved_sims_multiparam.ABC_saved(nholder1, n, save_sims, simnames, real_data, nbin
+                , sn, nzs, ells, loadparams
+                , at_once=True, draws=draws, MLE=True, notebook=False, rescale=rescale)
+# plot the results
+ABC_saved_sims_multiparam.plot_ABC_2params(abc, nholder1, theta_fid, prior, oneD='both', hbins=30
+    , epsilon=None,show=False)
 
-# sys.exit("Exit before PMC")
+sys.exit("Exit before PMC")
 # # Perform PMC
 num_keep = int(50)
 inital_draws = int(100)
@@ -2354,7 +2335,11 @@ def checkNaNs():
 
 def save_ABC_results(nholder, abc): 
     for key in abc.keys():
-        np.save(f'./preloaded_data_s8/ABC_results/abc{nholder.modelversion}{key}',abc[key])
+        np.save(f'./preloaded_data_sigma8/ABC_results/abc{nholder.modelversion}{key}',abc[key])
+
+def save_PMC_results(nholder, abc): 
+    for key in abc.keys():
+        np.save(f'./preloaded_data_sigma8/PMC_results/pmc{nholder.modelversion}{key}',abc[key])
 
 
 
